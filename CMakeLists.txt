@@ -26,7 +26,7 @@ CPMAddPackage(
 CPMAddPackage(
     NAME drogon-onebot
     GIT_REPOSITORY https://github.com/yizhinailong/drogon-onebot.git
-    GIT_TAG v0.4.0
+    GIT_TAG v0.5.0
 )
 
 file(GLOB_RECURSE SOURCE CONFIGURE_DEPENDS
