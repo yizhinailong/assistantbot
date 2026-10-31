@@ -92,3 +92,23 @@ export function deleteCharacter(revision: string): Promise<FeatureRecord<null>> 
     method: 'DELETE',
   })
 }
+
+export interface ModelRole {
+  enabled: boolean
+  base_url: string
+  api_key_env: string
+  model: string
+  timeout: number
+  max_retries: number
+  max_tokens: number
+  temperature: number
+  reasoning_effort: string
+}
+export type ModelConfig = Record<string, ModelRole>
+export interface ExecutionConfig {
+  max_tool_rounds: number
+  max_tool_result_chars: number
+  mcp_page_size: number
+  mcp_max_tools_per_enable: number
+  mcp_max_tools_per_reply: number
+}

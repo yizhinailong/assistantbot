@@ -9,6 +9,7 @@ import ReplySettingsView from '@/views/ReplySettingsView.vue'
 import UsageView from '@/views/UsageView.vue'
 import LogsView from '@/views/LogsView.vue'
 import HttpTracesView from '@/views/HttpTracesView.vue'
+import ModelsView from '@/views/ModelsView.vue'
 import AssetsView from '@/views/AssetsView.vue'
 import GroupsView from '@/views/GroupsView.vue'
 
@@ -24,6 +25,7 @@ const router = createRouter({
     { path: '/settings', name: 'settings', component: ReplySettingsView },
     { path: '/usage', name: 'usage', component: UsageView },
     { path: '/logs', name: 'logs', component: LogsView },
+    { path: '/models', name: 'models', component: ModelsView },
     { path: '/assets', name: 'assets', component: AssetsView },
     { path: '/groups', name: 'groups', component: GroupsView },
     { path: '/http-traces', name: 'http-traces', component: HttpTracesView },
