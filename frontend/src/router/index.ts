@@ -9,6 +9,7 @@ import ReplySettingsView from '@/views/ReplySettingsView.vue'
 import UsageView from '@/views/UsageView.vue'
 import LogsView from '@/views/LogsView.vue'
 import HttpTracesView from '@/views/HttpTracesView.vue'
+import AssetsView from '@/views/AssetsView.vue'
 import GroupsView from '@/views/GroupsView.vue'
 
 // Hash history keeps every page at `/`, so drogon serves index.html from document_root
@@ -23,6 +24,7 @@ const router = createRouter({
     { path: '/settings', name: 'settings', component: ReplySettingsView },
     { path: '/usage', name: 'usage', component: UsageView },
     { path: '/logs', name: 'logs', component: LogsView },
+    { path: '/assets', name: 'assets', component: AssetsView },
     { path: '/groups', name: 'groups', component: GroupsView },
     { path: '/http-traces', name: 'http-traces', component: HttpTracesView },
     { path: '/:pathMatch(.*)*', redirect: '/' },

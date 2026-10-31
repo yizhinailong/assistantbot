@@ -13,6 +13,7 @@ const pages = [
   { to: '/', label: '运行状态' },
   { to: '/sessions', label: '会话' },
   { to: '/settings', label: '回复设置' },
+  { to: '/assets', label: '表情与角色图' },
   { to: '/groups', label: '群聊' },
   { to: '/access', label: '访问控制' },
   { to: '/usage', label: '用量统计' },
