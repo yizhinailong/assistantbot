@@ -1,6 +1,6 @@
 services:
   assistantbot:
-    image: assistantbot:local
+    image: ${ASSISTANTBOT_IMAGE:-assistantbot:local}
     build:
       context: .
       args:
