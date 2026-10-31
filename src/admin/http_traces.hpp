@@ -1,5 +1,5 @@
 /**
- * @file admin/http_traces.hpp
+ * @file
  * @brief Retain bounded, redacted diagnostics for outgoing HTTP requests.
  */
 #pragma once

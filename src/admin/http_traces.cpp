@@ -1,5 +1,5 @@
 /**
- * @file admin/http_traces.cpp
+ * @file
  * @brief Collect redacted request attempts without retaining authorization headers.
  */
 #include "admin/http_traces.hpp"
