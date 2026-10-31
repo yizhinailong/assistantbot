@@ -153,6 +153,21 @@ namespace admin {
     }
 
     /**
+     * @brief Add a runtime role or MCP credential to the diagnostic redaction set.
+     * @param secret Credential value, never returned to clients.
+     */
+    auto add_http_trace_secret(std::string secret) -> void {
+        if (secret.empty()) {
+            return;
+        }
+        auto& value{ state() };
+        std::lock_guard lock{ value.mutex };
+        if (std::ranges::find(value.secrets, secret) == value.secrets.end()) {
+            value.secrets.push_back(std::move(secret));
+        }
+    }
+
+    /**
      * @brief Append one diagnostic record and announce its ID to administrators.
      * @param trace Owned HTTP metadata and bounded textual payloads.
      */

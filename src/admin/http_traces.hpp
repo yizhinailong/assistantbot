@@ -19,6 +19,12 @@ namespace admin {
     auto configure_http_traces(std::vector<std::string> secrets) -> void;
 
     /**
+     * @brief Add a runtime role or MCP credential to the diagnostic redaction set.
+     * @param secret Credential value, never returned to clients.
+     */
+    auto add_http_trace_secret(std::string secret) -> void;
+
+    /**
      * @brief Append one diagnostic record and announce its ID to administrators.
      * @param trace Owned HTTP metadata and bounded textual payloads.
      */
