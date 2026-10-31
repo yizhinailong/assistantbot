@@ -59,6 +59,11 @@ namespace storage {
                     "ALTER TABLE chat_messages ADD COLUMN group_id INTEGER NOT NULL DEFAULT 0",
                     "UPDATE chat_messages SET sender_id = user_id",
                 },
+                // 7: portable vectors carry their endpoint/model space and document revisions.
+                {
+                    "CREATE TABLE memories (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER NOT NULL CHECK(session_id != 0), content TEXT NOT NULL, embedding TEXT NOT NULL, embedding_space TEXT NOT NULL, revision INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL) STRICT",
+                    "CREATE INDEX memories_session_id ON memories (session_id, id)",
+                },
             };
             return list;
         }

@@ -17,6 +17,8 @@ namespace workflow {
     class BotSettings;
     class FeatureSettings;
     class PrivateChat;
+    class ModelRoles;
+    class MemoryService;
 
 } // namespace workflow
 
@@ -56,6 +58,8 @@ namespace controllers {
         std::shared_ptr<workflow::PrivateChat> m_chat;         ///< Handler state, shared with the registered message handler.
         std::shared_ptr<std::atomic_bool> m_paused;            ///< Pause flag shared with the registered message handler.
         std::shared_ptr<workflow::BotSettings> m_settings;     ///< Live reply settings shared with the workflow.
+        std::shared_ptr<workflow::ModelRoles> m_models;        ///< Shared independent model endpoints.
+        std::shared_ptr<workflow::MemoryService> m_memory;     ///< Persistent optional memory service.
         std::shared_ptr<workflow::FeatureSettings> m_features; ///< Optional capabilities and group settings.
         std::shared_ptr<workflow::AccessControl> m_access;     ///< Persistent policy shared with the registered message handler.
 
@@ -116,6 +120,12 @@ namespace controllers {
          * @return Settings manager during the plugin lifetime.
          */
         [[nodiscard]] auto Features() const -> std::shared_ptr<workflow::FeatureSettings>;
+
+        /**
+         * @brief Get the persistent memory service used by the bot and admin endpoints.
+         * @return Memory service during plugin lifetime.
+         */
+        [[nodiscard]] auto Memory() const -> std::shared_ptr<workflow::MemoryService>;
 
         /**
          * @brief Drop the plugin's reference to the handler state.

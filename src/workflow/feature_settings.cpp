@@ -195,7 +195,6 @@ namespace workflow {
                 boolean(values, "affinity_enabled");
                 integer(values, "max_memories", 1, 20);
                 integer(values, "maintenance_turns", 1, 100);
-                integer(values, "consolidation_hour_utc", 0, 23);
                 number(values, "similarity_threshold", 0, 1);
             } else if (section == "tools") {
                 boolean(values, "enabled");
@@ -280,7 +279,6 @@ namespace workflow {
         memory["affinity_enabled"] = false;
         memory["max_memories"] = 3;
         memory["maintenance_turns"] = 10;
-        memory["consolidation_hour_utc"] = 19;
         memory["similarity_threshold"] = 0.45;
         root["tools"]["enabled"] = false;
         root["tools"]["builtin"] = Json::Value{ Json::objectValue };

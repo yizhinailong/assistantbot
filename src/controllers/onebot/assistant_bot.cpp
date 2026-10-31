@@ -18,6 +18,7 @@
 #include "workflow/access_control.hpp"
 #include "workflow/bot_settings.hpp"
 #include "workflow/feature_settings.hpp"
+#include "workflow/memory.hpp"
 #include "workflow/private_chat.hpp"
 
 namespace controllers {
@@ -167,6 +168,8 @@ namespace controllers {
 
         // Drogon starts the plugins before any event loop runs, so reading the database blocks safely.
         m_features = std::make_shared<workflow::FeatureSettings>(database->Client());
+        m_models = std::make_shared<workflow::ModelRoles>(openai->NewOpenAIClient(), database->Client(), openai->Config().model);
+        m_memory = std::make_shared<workflow::MemoryService>(database->Client(), m_models);
         m_settings = std::make_shared<workflow::BotSettings>(config, database->Client());
         m_chat = std::make_shared<workflow::PrivateChat>(m_settings, admin::traced_onebot(), admin::traced_model(openai->NewOpenAIClient()), database->Client(), openai->Config().model);
         m_paused = std::make_shared<std::atomic_bool>(false);
@@ -217,6 +220,8 @@ namespace controllers {
      * Handlers that are still running keep their own reference until they end.
      */
     auto AssistantBot::shutdown() -> void {
+        m_memory.reset();
+        m_models.reset();
         m_features.reset();
         m_settings.reset();
         m_access.reset();
@@ -246,6 +251,14 @@ namespace controllers {
      */
     auto AssistantBot::Features() const -> std::shared_ptr<workflow::FeatureSettings> {
         return m_features;
+    }
+
+    /**
+     * @brief Get the persistent memory service used by the bot and admin endpoints.
+     * @return Memory service during plugin lifetime.
+     */
+    auto AssistantBot::Memory() const -> std::shared_ptr<workflow::MemoryService> {
+        return m_memory;
     }
 
 } // namespace controllers
