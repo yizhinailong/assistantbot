@@ -312,7 +312,7 @@ namespace {
         }
         std::unique_ptr<lua_State, decltype(&lua_close)> owned{ state, lua_close };
         *static_cast<Budget**>(lua_getextraspace(state)) = &budget;
-        for (auto const& [name, open] : { std::pair{ LUA_GNAME, luaopen_base }, std::pair{ LUA_TABLIBNAME, luaopen_table }, std::pair{ LUA_STRLIBNAME, luaopen_string }, std::pair{ LUA_MATHLIBNAME, luaopen_math }, std::pair{ LUA_UTF8LIBNAME, luaopen_utf8 }, std::pair{ LUA_COLIBNAME, luaopen_coroutine } }) {
+        for (auto const& [name, open] : { luaL_Reg{ LUA_GNAME, luaopen_base }, luaL_Reg{ LUA_TABLIBNAME, luaopen_table }, luaL_Reg{ LUA_STRLIBNAME, luaopen_string }, luaL_Reg{ LUA_MATHLIBNAME, luaopen_math }, luaL_Reg{ LUA_UTF8LIBNAME, luaopen_utf8 }, luaL_Reg{ LUA_COLIBNAME, luaopen_coroutine } }) {
             luaL_requiref(state, name, open, 1);
             lua_pop(state, 1);
         }
