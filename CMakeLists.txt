@@ -13,6 +13,7 @@ set(CMAKE_CXX_STANDARD 26)
 include(cmake/CPM.cmake)
 
 find_package(Drogon CONFIG REQUIRED)
+find_package(unofficial-lua CONFIG REQUIRED)
 if(NOT TARGET SQLite3_lib)
     message(FATAL_ERROR "drogon is installed without SQLite support, which storage::Database needs. Run: vcpkg install 'drogon[sqlite3]'")
 endif()
@@ -52,6 +53,7 @@ target_link_libraries(
     drogon-openai::drogon-openai
     drogon-onebot::drogon-onebot
     SQLite3_lib
+    unofficial::lua::lua-cpp
 )
 
 if(WIN32)

@@ -84,7 +84,7 @@ jobs:
         id: vcpkg-key
         # vcpkg's ABI hashes cover the compiler and CMake that build the ports.
         run: |
-          printf 'key=vcpkg-%s-x64-linux-%s-gcc%s-cmake%s-drogon-sqlite3\n' \
+          printf 'key=vcpkg-%s-x64-linux-%s-gcc%s-cmake%s-drogon-sqlite3-lua-cpp\n' \
             "$ImageOS" "$VCPKG_COMMIT" "$(gcc -dumpfullversion)" "$CMAKE_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Restore vcpkg binary cache
@@ -94,7 +94,7 @@ jobs:
           path: ${{ runner.temp }}/vcpkg-binary-cache
           key: ${{ steps.vcpkg-key.outputs.key }}
 
-      - name: Install vcpkg and drogon with SQLite
+      - name: Install vcpkg, Drogon with SQLite, and Lua C++
         env:
           VCPKG_DISABLE_METRICS: '1'
         run: |
@@ -105,7 +105,7 @@ jobs:
           "$vcpkg_root/bootstrap-vcpkg.sh" -disableMetrics
           mkdir -p "$RUNNER_TEMP/vcpkg-binary-cache"
           export VCPKG_BINARY_SOURCES="clear;files,$RUNNER_TEMP/vcpkg-binary-cache,readwrite"
-          "$vcpkg_root/vcpkg" install 'drogon[sqlite3]'
+          "$vcpkg_root/vcpkg" install 'drogon[sqlite3]' 'lua[cpp]'
           printf 'VCPKG_ROOT=%s\n' "$vcpkg_root" >> "$GITHUB_ENV"
 
       - name: Save vcpkg binary cache

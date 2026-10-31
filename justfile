@@ -11,7 +11,7 @@ default:
     @just --list
 
 init:
-    @vcpkg install 'drogon[sqlite3]'
+    @vcpkg install 'drogon[sqlite3]' 'lua[cpp]'
 
 configure profile="debug" *args:
     @cmake --preset "{{ platform }}-{{ profile }}" {{ args }}
