@@ -11,6 +11,7 @@
 #include <stdexcept>
 
 #include "storage/settings.hpp"
+#include "tools/catalog.hpp"
 #include "workflow/access_control.hpp"
 
 namespace workflow {
@@ -26,7 +27,11 @@ namespace workflow {
          * @param name Section name for validation errors.
          * @return Values overlaid on the defaults.
          */
-        auto merge_object(Json::Value const& value, Json::Value defaults, std::string const& name) -> Json::Value {
+        auto merge_object(
+            Json::Value const& value,
+            Json::Value defaults,
+            std::string const& name
+        ) -> Json::Value {
             if (!value.isObject()) {
                 throw std::invalid_argument{ name + " must be an object" };
             }
@@ -82,7 +87,12 @@ namespace workflow {
          * @param minimum Minimum accepted value.
          * @param maximum Maximum accepted value.
          */
-        auto number(Json::Value const& value, char const* key, double minimum, double maximum) -> void {
+        auto number(
+            Json::Value const& value,
+            char const* key,
+            double minimum,
+            double maximum
+        ) -> void {
             if (!value[key].isNumeric() || !std::isfinite(value[key].asDouble()) || value[key].asDouble() < minimum || value[key].asDouble() > maximum) {
                 throw std::invalid_argument{ std::string{ key } + " must be a finite number in range" };
             }
@@ -202,6 +212,9 @@ namespace workflow {
                     throw std::invalid_argument{ "builtin must be an object" };
                 }
                 for (auto const& name : values["builtin"].getMemberNames()) {
+                    if (!tools::is_builtin(name)) {
+                        throw std::invalid_argument{ "unknown built-in tool: " + name };
+                    }
                     Json::Value tool{};
                     tool["enabled"] = true;
                     tool["description"] = "";
