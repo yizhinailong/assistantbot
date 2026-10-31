@@ -2,9 +2,9 @@
 
 English · [简体中文](README.zh-CN.md)
 
-A QQ private chat bot built on [drogon](https://github.com/drogonframework/drogon). It receives messages from a OneBot v11 implementation such as [NapCat](https://github.com/NapNeko/NapCatQQ) through [drogon-onebot](https://github.com/yizhinailong/drogon-onebot), and answers them with an OpenAI-compatible model such as DeepSeek through [drogon-openai](https://github.com/yizhinailong/drogon-openai).
+A QQ chat bot built on [drogon](https://github.com/drogonframework/drogon). It receives messages from a OneBot v11 implementation such as [NapCat](https://github.com/NapNeko/NapCatQQ) through [drogon-onebot](https://github.com/yizhinailong/drogon-onebot), and answers them with an OpenAI-compatible model such as DeepSeek through [drogon-openai](https://github.com/yizhinailong/drogon-openai).
 
-The bot answers text messages in private chats, from every friend of its QQ account by default. The admin pages can restrict replies to an allowlist and block individual senders with a blacklist. It keeps a short model context per user in memory. The admin pages provide live chat records, context resets, reply settings, UTC usage charts, and filtered logs; SQLite persists settings, messages, and usage.
+The bot answers friends by default and supports opt-in group conversations. Admin pages manage access, live chat records, reply settings, independent model roles, memory, scheduled tasks, built-in and Lua tools, MCP services, favourite stickers, character images, usage, logs, and HTTP traces. SQLite persists configuration and records; short-term model context stays in memory. Optional model roles, memory, and tools start disabled.
 
 [Quick start](#quick-start) · [Documentation index](docs/en/README.md) · [Bot guide](docs/en/bot.md) · [Admin pages](docs/en/admin.md) · [Version tags and Linux CI](docs/en/ci.md) · [Doxygen guide](docs/en/doxygen.md)
 
@@ -15,9 +15,10 @@ The bot answers text messages in private chats, from every friend of its QQ acco
 | CMake | ≥ 4.0 | The build uses the `<os>-<profile>` presets in `CMakePresets.json` |
 | Ninja, ccache | Any recent version | The presets always use the Ninja generator and the ccache compiler launcher |
 | Compiler | `clang++` on Linux, `clang-cl` on Windows | The project uses C++26 |
-| [vcpkg](https://github.com/microsoft/vcpkg) | Classic mode | Provides drogon; `VCPKG_ROOT` must be set |
-| drogon | 1.9.13 | Installed by vcpkg with its `sqlite3` feature; `just init` runs `vcpkg install 'drogon[sqlite3]'` |
-| drogon-onebot, drogon-openai | `v0.4.0`, `v0.2.0` | Release tags pinned in `CMakeLists.txt`. CPM clones them from GitHub on the first configure, which needs network access, into `$CPM_SOURCE_CACHE` when it is set or into the build tree otherwise |
+| [vcpkg](https://github.com/microsoft/vcpkg) | Classic mode | Provides drogon and Lua; `VCPKG_ROOT` must be set |
+| drogon | 1.9.13 | Installed by vcpkg with its `sqlite3` feature; `just init` runs `vcpkg install 'drogon[sqlite3]' 'lua[cpp]'` |
+| drogon-onebot, drogon-openai | `v0.5.0`, `v0.3.0` | Release tags pinned in `CMakeLists.txt`. CPM clones them from GitHub on the first configure, which needs network access, into `$CPM_SOURCE_CACHE` when it is set or into the build tree otherwise |
+| Lua | 5.5.1 with `cpp` | Installed by vcpkg as `lua[cpp]`; the C++ build preserves exception unwinding in bounded custom tools |
 | Node.js, pnpm | `^22.18.0` or `>=24.12.0`, 12.15.0 | Only for the admin pages in `frontend/`; `just frontend-init` installs their dependencies. See the [admin guide](docs/en/admin.md) |
 
 [Linux CI](.github/workflows/linux-ci.yml) runs a debug and a release configuration on Ubuntu 24.04:

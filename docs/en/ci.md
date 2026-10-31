@@ -73,9 +73,9 @@ Run rules:
    - Before adding the package source, check the fingerprint of the LLVM signing key.
    - Put `/usr/lib/llvm-21/bin` on `PATH`, so the presets' `clang++` resolves to LLVM 21.
 3. `debug` job only: run `clang-format --dry-run -Werror` on every tracked `.cpp` and `.hpp` file, with the rules from the root `.clang-format`.
-4. Shallow-clone vcpkg at the pinned commit `67972e92` (which provides drogon 1.9.13 port-version 2, the version verified locally), run `bootstrap-vcpkg.sh` and `vcpkg install 'drogon[sqlite3]'` (drogon with SQLite, which the bot's database needs), and set `VCPKG_ROOT`.
+4. Shallow-clone vcpkg at the pinned commit `67972e92` (which provides drogon 1.9.13 port-version 2, the version verified locally), run `bootstrap-vcpkg.sh` and `vcpkg install 'drogon[sqlite3]' 'lua[cpp]'` (SQLite storage and the C++ Lua runtime), and set `VCPKG_ROOT`.
    - `actions/cache` saves vcpkg's binary cache directory.
-   - The cache key includes the runner image, the vcpkg commit, the GCC version used to build the ports, the CMake version, and the installed features (`drogon-sqlite3`). A change to any of them rebuilds the dependencies.
+   - The cache key includes the runner image, the vcpkg commit, the GCC version used to build the ports, the CMake version, and the installed features (`drogon-sqlite3-lua-cpp`). A change to any of them rebuilds the dependencies.
    - The cache is saved right after a successful install, so a failure in a later step does not lose it.
    - When the dependency install fails, the vcpkg build logs of that run are printed.
 5. `cmake --preset`, then `cmake --build --preset`, then `ctest --preset`.

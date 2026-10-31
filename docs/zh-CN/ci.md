@@ -73,9 +73,9 @@
    - 添加软件源前，先核对 LLVM 签名密钥的指纹。
    - 把 `/usr/lib/llvm-21/bin` 加入 `PATH`，让预设中的 `clang++` 指向 LLVM 21。
 3. 仅 `debug` 任务：对所有被跟踪的 `.cpp` 和 `.hpp` 执行 `clang-format --dry-run -Werror`，规则来自根目录的 `.clang-format`。
-4. 浅克隆 vcpkg 的固定提交 `67972e92`（提供 drogon 1.9.13 port-version 2，与本地验证的版本一致），执行 `bootstrap-vcpkg.sh` 和 `vcpkg install 'drogon[sqlite3]'`（带 SQLite 的 drogon，bot 的数据库需要它），并设置 `VCPKG_ROOT`。
+4. 浅克隆 vcpkg 的固定提交 `67972e92`（提供 drogon 1.9.13 port-version 2，与本地验证的版本一致），执行 `bootstrap-vcpkg.sh` 和 `vcpkg install 'drogon[sqlite3]' 'lua[cpp]'`（SQLite 存储和 Lua C++ 运行时），并设置 `VCPKG_ROOT`。
    - vcpkg 的二进制缓存目录由 `actions/cache` 保存。
-   - 缓存键包含运行器镜像、vcpkg 提交、构建 port 用的 GCC 版本、CMake 版本和安装的特性（`drogon-sqlite3`），其中任一项变化都会重建依赖。
+   - 缓存键包含运行器镜像、vcpkg 提交、构建 port 用的 GCC 版本、CMake 版本和安装的特性（`drogon-sqlite3-lua-cpp`），其中任一项变化都会重建依赖。
    - 缓存在安装成功后立即保存，所以后续步骤失败也不影响缓存。
    - 依赖安装失败时，输出本次的 vcpkg 构建日志。
 5. `cmake --preset`，然后 `cmake --build --preset`，最后 `ctest --preset`。

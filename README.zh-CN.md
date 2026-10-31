@@ -2,9 +2,9 @@
 
 [English](README.md) · 简体中文
 
-基于 [drogon](https://github.com/drogonframework/drogon) 的 QQ 私聊机器人。它通过 [drogon-onebot](https://github.com/yizhinailong/drogon-onebot) 接收 [NapCat](https://github.com/NapNeko/NapCatQQ) 等 OneBot v11 实现转来的消息，再通过 [drogon-openai](https://github.com/yizhinailong/drogon-openai) 调用 DeepSeek 等兼容 OpenAI 格式的模型来回复。
+基于 [drogon](https://github.com/drogonframework/drogon) 的 QQ 聊天机器人。它通过 [drogon-onebot](https://github.com/yizhinailong/drogon-onebot) 接收 [NapCat](https://github.com/NapNeko/NapCatQQ) 等 OneBot v11 实现转来的消息，再通过 [drogon-openai](https://github.com/yizhinailong/drogon-openai) 调用 DeepSeek 等兼容 OpenAI 格式的模型来回复。
 
-目前只回复私聊里的文字消息，默认回复该 QQ 账号的所有好友。管理后台可以限制为只回复允许名单内的好友，并用黑名单拦截指定用户。每个用户的最近几轮模型上下文保存在内存里。管理后台提供实时聊天记录、上下文重置、回复设置、UTC 用量图表和日志过滤；设置、消息和用量保存在 SQLite 中。
+默认回复好友，可单独启用群聊。管理后台提供访问控制、实时聊天记录、回复设置、独立模型角色、人物与记忆、定时任务、内置和 Lua 工具、MCP 服务、收藏表情、角色图、用量、日志和请求追踪。配置和记录保存在 SQLite，短期模型上下文只在内存中。可选模型角色、记忆和工具默认关闭。
 
 [快速开始](#快速开始) · [文档索引](docs/zh-CN/README.md) · [bot 使用说明](docs/zh-CN/bot.md) · [管理后台](docs/zh-CN/admin.md) · [版本标签与 Linux CI](docs/zh-CN/ci.md) · [Doxygen 使用说明](docs/zh-CN/doxygen.md)
 
@@ -15,9 +15,10 @@
 | CMake | ≥ 4.0 | 构建使用 `CMakePresets.json` 中的 `<os>-<profile>` 预设 |
 | Ninja、ccache | 任意较新版本 | 预设固定使用 Ninja 生成器和 ccache 编译器启动器 |
 | 编译器 | Linux 上为 `clang++`，Windows 上为 `clang-cl` | 项目使用 C++26 |
-| [vcpkg](https://github.com/microsoft/vcpkg) | classic 模式 | 提供 drogon，需设置 `VCPKG_ROOT` |
-| drogon | 1.9.13 | 由 vcpkg 安装，需要 `sqlite3` 特性，`just init` 执行 `vcpkg install 'drogon[sqlite3]'` |
-| drogon-onebot、drogon-openai | `v0.4.0`、`v0.2.0` | 在 `CMakeLists.txt` 中固定的发布标签。首次配置时由 CPM 从 GitHub 克隆（需要网络），设置了 `CPM_SOURCE_CACHE` 时克隆到该目录，否则克隆到构建目录 |
+| [vcpkg](https://github.com/microsoft/vcpkg) | classic 模式 | 提供 drogon 和 Lua，需设置 `VCPKG_ROOT` |
+| drogon | 1.9.13 | 由 vcpkg 安装，需要 `sqlite3` 特性，`just init` 执行 `vcpkg install 'drogon[sqlite3]' 'lua[cpp]'` |
+| drogon-onebot、drogon-openai | `v0.5.0`、`v0.3.0` | 在 `CMakeLists.txt` 中固定的发布标签。首次配置时由 CPM 从 GitHub 克隆（需要网络），设置了 `CPM_SOURCE_CACHE` 时克隆到该目录，否则克隆到构建目录 |
+| Lua | 5.5.1，带 `cpp` 特性 | 由 vcpkg 的 `lua[cpp]` 安装，C++ 版本支持受限工具执行期间的异常栈展开 |
 | Node.js、pnpm | `^22.18.0` 或 `>=24.12.0`、12.15.0 | 只有 `frontend/` 中的管理后台需要，`just frontend-init` 安装它的依赖。见 [管理后台](docs/zh-CN/admin.md) |
 
 [Linux CI](.github/workflows/linux-ci.yml) 在 Ubuntu 24.04 上运行 debug 和 release 两套配置：
