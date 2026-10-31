@@ -14,6 +14,7 @@
 #include "storage/messages.hpp"
 #include "storage/usage.hpp"
 #include "workflow/access_control.hpp"
+#include "workflow/agent.hpp"
 
 namespace workflow {
 
@@ -163,6 +164,24 @@ namespace workflow {
         params.max_tokens = config->max_tokens;
         params.timeout = config->request_timeout;
 
+        if (m_agent) {
+            auto result{ co_await m_agent->Run(peer, std::move(params), prompt, [this, peer](drogon_onebot::Message message, std::string display) -> drogon::Task<Json::Value> {
+                co_return co_await SendMessage(peer, std::move(message), std::move(display));
+            }) };
+            if (!result.completed) {
+                co_await Send(peer, FAILURE_REPLY);
+                co_return;
+            }
+            if (!result.text.empty()) {
+                m_sessions.Record(conversation_id(peer), history.generation, { .user = prompt, .assistant = result.text }, SessionStore::Clock::now());
+                if (!result.delivered) {
+                    for (auto& part : common::split_reply(result.text, config->max_reply_chars)) {
+                        co_await Send(peer, std::move(part));
+                    }
+                }
+            }
+            co_return;
+        }
         auto const completion{ co_await m_openai.chat.completions.Create(std::move(params)) };
         auto reply{ reply_text(completion, peer.user_id) };
         storage::UsageRecord usage{
@@ -212,21 +231,56 @@ namespace workflow {
      * @return Task that ends when the OneBot implementation has answered.
      */
     auto PrivateChat::Send(Peer peer, std::string text) -> drogon::Task<> {
-        auto const sent{ peer.group_id == 0 ? co_await m_onebot.SendPrivateMsg({
-                                                  .user_id = peer.user_id,
-                                                  .message = { drogon_onebot::MessageSegment::Text(text) },
-                                              }) :
-                                              co_await m_onebot.SendGroupMsg({
-                                                  .group_id = peer.group_id,
-                                                  .message = { drogon_onebot::MessageSegment::Text(text) },
-                                              }) };
-        if (!sent) {
-            LOG_ERROR << "Sending a message to " << peer.user_id << " failed: " << sent.error().message;
-            co_await appendMessage(peer, "outgoing", std::move(text), "failed", sent.error().message);
-            co_return;
+        static_cast<void>(co_await SendMessage(peer, { drogon_onebot::MessageSegment::Text(text) }, text));
+    }
+
+    /**
+     * @brief Install optional execution services before message listeners start.
+     * @param agent Shared runtime without a strong reference back to this workflow.
+     */
+    auto PrivateChat::SetAgent(std::shared_ptr<AgentRuntime> agent) -> void {
+        m_agent = std::move(agent);
+    }
+
+    /**
+     * @brief Describe current incoming images when the vision role is enabled.
+     * @param peer Sender and incoming image URLs.
+     * @param question Accompanying user text.
+     * @return Image description or empty.
+     */
+    auto PrivateChat::DescribeImages(Peer peer, std::string question) -> drogon::Task<std::string> {
+        if (!m_agent) {
+            co_return std::string{};
         }
-        LOG_INFO << common::describe_sent(peer.self_id, peer.user_id, peer.nickname, text);
-        co_await appendMessage(peer, "outgoing", std::move(text), "sent", {});
+        auto urls{ peer.image_urls };
+        co_return co_await m_agent->DescribeImages(std::move(peer), std::move(urls), std::move(question));
+    }
+
+    /**
+     * @brief Send typed segments and persist the delivery outcome.
+     * @param peer Current recipient.
+     * @param message Typed message segments.
+     * @param display Readable message text for history and logs.
+     * @return Delivery status and optional message ID.
+     */
+    auto PrivateChat::SendMessage(
+        Peer peer,
+        drogon_onebot::Message message,
+        std::string display
+    ) -> drogon::Task<Json::Value> {
+        auto const sent{ peer.group_id == 0 ? co_await m_onebot.SendPrivateMsg({ .user_id = peer.user_id, .message = std::move(message) }) : co_await m_onebot.SendGroupMsg({ .group_id = peer.group_id, .message = std::move(message) }) };
+        Json::Value result{};
+        result["ok"] = sent.has_value();
+        if (!sent) {
+            result["error"] = sent.error().message;
+            LOG_ERROR << "Sending a message to " << peer.user_id << " failed: " << sent.error().message;
+            co_await appendMessage(peer, "outgoing", std::move(display), "failed", sent.error().message);
+        } else {
+            result["message_id"] = std::to_string(sent->message_id);
+            LOG_INFO << common::describe_sent(peer.self_id, peer.user_id, peer.nickname, display);
+            co_await appendMessage(peer, "outgoing", std::move(display), "sent", {});
+        }
+        co_return result;
     }
 
     /**

@@ -19,6 +19,8 @@
 
 namespace workflow {
 
+    class AgentRuntime;
+
     /**
      * @brief Answer when the model gives no reply.
      */
@@ -28,11 +30,13 @@ namespace workflow {
      * @brief Friend that a reply goes to, with what the log shows of them.
      */
     struct Peer {
-        std::int64_t self_id{};        ///< QQ number of the bot account.
-        std::int64_t user_id{};        ///< QQ number of the friend.
-        std::string nickname;          ///< Nickname of the friend; may be empty.
-        std::int64_t group_id{};       ///< Group recipient; zero denotes a private conversation.
-        std::string additional_prompt; ///< Per-group instructions copied when an event is accepted.
+        std::int64_t self_id{};              ///< QQ number of the bot account.
+        std::int64_t user_id{};              ///< QQ number of the friend.
+        std::string nickname;                ///< Nickname of the friend; may be empty.
+        std::int64_t group_id{};             ///< Group recipient; zero denotes a private conversation.
+        std::string additional_prompt;       ///< Per-group instructions copied when an event is accepted.
+        std::int32_t message_id{};           ///< Current incoming message available for quoting.
+        std::vector<std::string> image_urls; ///< Bounded incoming HTTP image locations.
     };
 
     /**
@@ -66,6 +70,7 @@ namespace workflow {
         drogon_openai::OpenAI m_openai;                ///< Client that asks the model.
         SessionStore m_sessions;                       ///< Conversation state of each user.
         drogon::orm::DbClientPtr m_database;           ///< Database for completed model usage.
+        std::shared_ptr<AgentRuntime> m_agent;         ///< Optional role and tool execution runtime.
         std::string m_model;                           ///< Configured model name for failed requests.
 
     public:
@@ -139,6 +144,33 @@ namespace workflow {
          * @return Task that ends when the OneBot implementation has answered.
          */
         auto Send(Peer peer, std::string text) -> drogon::Task<>;
+
+        /**
+         * @brief Install optional execution services before message listeners start.
+         * @param agent Shared runtime without a strong reference back to this workflow.
+         */
+        auto SetAgent(std::shared_ptr<AgentRuntime> agent) -> void;
+
+        /**
+         * @brief Send typed segments and persist the delivery outcome.
+         * @param peer Current recipient.
+         * @param message Typed message segments.
+         * @param display Readable message text for history and logs.
+         * @return Delivery status and optional message ID.
+         */
+        auto SendMessage(
+            Peer peer,
+            drogon_onebot::Message message,
+            std::string display
+        ) -> drogon::Task<Json::Value>;
+
+        /**
+         * @brief Describe current incoming images when the vision role is enabled.
+         * @param peer Sender and incoming image URLs.
+         * @param question Accompanying user text.
+         * @return Image description or empty.
+         */
+        auto DescribeImages(Peer peer, std::string question) -> drogon::Task<std::string>;
 
     private:
         /**

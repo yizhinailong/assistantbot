@@ -16,10 +16,10 @@ namespace workflow {
     class AccessControl;
     class BotSettings;
     class FeatureSettings;
-    class PrivateChat;
-    class ScheduledTasks;
     class ModelRoles;
     class MemoryService;
+    class ScheduledTasks;
+    class PrivateChat;
 
 } // namespace workflow
 

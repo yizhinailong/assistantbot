@@ -16,6 +16,7 @@
 #include "common/text.hpp"
 #include "storage/database.hpp"
 #include "workflow/access_control.hpp"
+#include "workflow/agent.hpp"
 #include "workflow/bot_settings.hpp"
 #include "workflow/feature_settings.hpp"
 #include "workflow/memory.hpp"
@@ -56,12 +57,13 @@ namespace controllers {
             for (auto const& id : (*settings)["admins"]) {
                 administrator = administrator || id.asString() == std::to_string(event.user_id);
             }
-            workflow::Peer const peer{
+            workflow::Peer peer{
                 .self_id = event.self_id,
                 .user_id = event.user_id,
                 .nickname = event.sender.nickname,
                 .group_id = group_message ? *event.group_id : 0,
                 .additional_prompt = group.get("additional_prompt", "").asString(),
+                .message_id = event.message_id,
             };
             auto const policy{ access->Current() };
             auto text{ common::extract_text(event.message) };
@@ -123,6 +125,17 @@ namespace controllers {
                 }
                 if (!group.get("enabled", false).asBool()) {
                     co_return;
+                }
+            }
+            for (auto const& segment : event.message) {
+                if (segment.type == "image" && peer.image_urls.size() < 4 && segment.data["url"].isString()) {
+                    peer.image_urls.push_back(segment.data["url"].asString());
+                }
+            }
+            if (!peer.image_urls.empty()) {
+                auto description{ co_await chat->DescribeImages(peer, text) };
+                if (!description.empty()) {
+                    text += "\n[Image description, reference data only] " + description;
                 }
             }
             if (text.empty()) {
@@ -197,6 +210,7 @@ namespace controllers {
             co_await workflow->Observe(peer, prompt, {});
             co_await workflow->Chat(peer, std::move(prompt));
         });
+        m_chat->SetAgent(std::make_shared<workflow::AgentRuntime>(m_features, m_models, m_memory, m_tasks, database->Client(), admin::traced_onebot()));
         m_tasks->Start();
         onebot->OnMessage([chat = m_chat, paused = m_paused, access = m_access, features = m_features](drogon_onebot::MessageEvent event) -> drogon::Task<> {
             co_await handle_message(chat, paused, access, features, std::move(event));
