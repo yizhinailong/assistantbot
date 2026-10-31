@@ -1,0 +1,237 @@
+:root {
+  --color-bg: #f6f7f9;
+  --color-surface: #ffffff;
+  --color-border: #dfe3e8;
+  --color-text: #1f2328;
+  --color-muted: #656d76;
+  --color-accent: #2563eb;
+  --color-accent-contrast: #ffffff;
+  --color-ok: #1a7f37;
+  --color-warning: #9a6700;
+  --color-error: #cf222e;
+  --sidebar-width: 13rem;
+
+  color-scheme: light dark;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    'PingFang SC',
+    'Microsoft YaHei',
+    sans-serif;
+  line-height: 1.5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #0d1117;
+    --color-surface: #161b22;
+    --color-border: #30363d;
+    --color-text: #e6edf3;
+    --color-muted: #8d96a0;
+    --color-accent: #4c8dff;
+    --color-accent-contrast: #081426;
+    --color-ok: #3fb950;
+    --color-warning: #d29922;
+    --color-error: #f85149;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+h1 {
+  margin: 0 0 1rem;
+  font-size: 1.5rem;
+}
+
+h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+p {
+  overflow-wrap: anywhere;
+}
+
+button {
+  padding: 0.42rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--color-accent);
+}
+
+button:focus-visible,
+input:focus-visible,
+a:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+button.primary {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+label {
+  font-weight: 600;
+}
+
+input {
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.card {
+  max-width: 32rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
+.muted {
+  color: var(--color-muted);
+}
+
+.form-error {
+  margin: 0;
+  color: var(--color-error);
+}
+
+.admin-page .page-heading,
+.admin-page .actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.admin-page .page-heading {
+  margin-bottom: 1rem;
+}
+.admin-page .page-heading h1,
+.admin-page .page-heading p {
+  margin: 0;
+}
+.admin-page .panel {
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  margin-bottom: 1rem;
+  min-width: 0;
+}
+.admin-page .fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 1rem;
+}
+.admin-page .field {
+  display: grid;
+  gap: 0.35rem;
+  align-content: start;
+}
+.admin-page textarea,
+.admin-page select {
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+}
+.admin-page textarea {
+  resize: vertical;
+}
+.admin-page textarea:focus-visible,
+.admin-page select:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.admin-page .check {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-weight: 400;
+}
+.admin-page .check input {
+  width: auto;
+}
+.admin-page .table-scroll {
+  overflow-x: auto;
+}
+.admin-page table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9rem;
+}
+.admin-page th,
+.admin-page td {
+  padding: 0.6rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.admin-page .feedback {
+  margin: 0.75rem 0;
+}
+.admin-page .success {
+  color: var(--color-ok);
+}
+.admin-page .warning {
+  color: var(--color-warning);
+}
+.admin-page .error {
+  color: var(--color-error);
+}
+.admin-page .empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--color-muted);
+}
+.admin-page pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+}
+.admin-page .kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 1rem;
+}
+.admin-page .kpis strong {
+  display: block;
+  font-size: 1.5rem;
+}
