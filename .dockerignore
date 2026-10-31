@@ -1,0 +1,21 @@
+# Send only build inputs; exclude local data, credentials, and generated artifacts.
+**
+!Dockerfile
+!CMakeLists.txt
+!CMakePresets.json
+!cmake/
+!cmake/**
+!src/
+!src/**
+!config.json
+!LICENSE
+!frontend/
+!frontend/**
+frontend/node_modules/
+frontend/dist/
+frontend/.cache/
+frontend/.eslintcache
+**/.env*
+**/.npmrc
+**/*.pem
+**/*.key
