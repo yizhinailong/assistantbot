@@ -105,6 +105,8 @@ nav {
 }
 
 nav a {
+  flex-shrink: 0;
+  white-space: nowrap;
   padding: 0.5rem 0.65rem;
   border-radius: 6px;
   color: var(--color-muted);
@@ -138,7 +140,7 @@ nav a.router-link-exact-active {
   .sidebar {
     flex: none;
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: 1fr auto;
     align-items: center;
     gap: 0.75rem;
     padding: 0.65rem 1rem;
@@ -155,11 +157,16 @@ nav a.router-link-exact-active {
   }
 
   nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    min-width: 0;
     flex-direction: row;
     overflow-x: auto;
   }
 
   .logout {
+    grid-column: 2;
+    grid-row: 1;
     margin: 0;
   }
 
