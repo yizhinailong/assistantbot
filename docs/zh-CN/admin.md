@@ -176,3 +176,9 @@ Linux CI 在单独的任务中运行 `pnpm check` 和构建，见 [版本标签�
 群聊页通过类型化 OneBot 接口读取已加入的群，所有群默认关闭。每个群可以设置启用、自动回复（关闭时需提及机器人）、群名片/昵称上下文、群命令和附加系统提示词，下一条消息起生效。管理员可以使用 `/on`、`/off`、`/auto on`、`/auto off`、`/prompt 提示词`、`/help`、`/reset`；管理员名单只授予群命令权限。暂停和黑名单仍然有效，私聊允许名单不限制已启用的群。
 
 `GET /api/admin/groups` 合并群列表与配置；`PUT /api/admin/groups/{qq}` 接收 `{values, revision}`。通用配置使用 `GET/PUT /api/admin/features/{section}`，节名为 `groups`、`admins`、`models`、`execution`、`memory`、`tools`、`mcp`。过期版本返回 409。会话接口和订阅中，正数字符串表示好友，负数字符串表示群；消息另含 `sender_id`、`group_id`。重启保留配置和聊天记录，但不从记录恢复模型上下文。
+
+## 表情与角色图
+
+表情与角色图页读取最多 200 个 NapCat 收藏表情，可以修改描述、添加和删除。添加时填写 **NapCat 主机上** 已存在的图片路径；NapCat 在容器里运行时，也要使用容器内路径。删除会改变 QQ 账号的收藏。这些接口使用 NapCat 扩展，其他 OneBot 实现可能返回 502 和动作错误。接口为 `GET/POST /api/admin/stickers`、`PUT/DELETE /api/admin/stickers/{res_id}`。
+
+角色图支持最大 8 MiB 的静态 PNG、JPEG、WebP，保存在 SQLite，可供生图工具使用。`GET/POST/DELETE /api/admin/character-image` 分别读取、替换和删除；POST 接收 `{data_url, revision}`，DELETE 接受 `?revision=`，旧版本返回 409。请求正文上限设为 12 MiB，以容纳 base64 编码。
