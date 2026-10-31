@@ -2,3 +2,7 @@ build/
 data/
 publish/
 .cache/
+.env
+.env.*
+!.env.example
+config.local.json

@@ -1,0 +1,42 @@
+services:
+  assistantbot:
+    image: assistantbot:local
+    build:
+      context: .
+      args:
+        BUILD_JOBS: ${BUILD_JOBS:-2}
+    # Match scripts/docker_run_napcat.sh and config.json's loopback addresses.
+    network_mode: host
+    init: true
+    restart: unless-stopped
+    read_only: true
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      ONEBOT_ACCESS_TOKEN: ${ONEBOT_ACCESS_TOKEN:?Set ONEBOT_ACCESS_TOKEN in .env or the shell}
+      ONEBOT_SECRET: ${ONEBOT_SECRET:?Set ONEBOT_SECRET in .env or the shell}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:?Set DEEPSEEK_API_KEY in .env or the shell}
+      ASSISTANTBOT_ADMIN_TOKEN: ${ASSISTANTBOT_ADMIN_TOKEN:?Set ASSISTANTBOT_ADMIN_TOKEN in .env or the shell}
+    volumes:
+      - type: bind
+        source: ${ASSISTANTBOT_CONFIG:-./config.json}
+        target: /app/config.json
+        read_only: true
+        bind:
+          create_host_path: false
+      - assistantbot-data:/app/data
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  assistantbot-data:

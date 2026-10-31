@@ -52,3 +52,15 @@ frontend-check:
 frontend-fix:
     @pnpm --dir frontend lint
     @pnpm --dir frontend format
+
+docker-build:
+    @docker build --tag {{ project_name }}:local .
+
+docker-up:
+    @docker compose up --detach --build
+
+docker-down:
+    @docker compose down
+
+docker-logs:
+    @docker compose logs --follow assistantbot
