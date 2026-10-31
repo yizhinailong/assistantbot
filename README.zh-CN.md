@@ -6,7 +6,7 @@
 
 默认回复好友，可单独启用群聊。管理后台提供访问控制、实时聊天记录、回复设置、独立模型角色、人物与记忆、定时任务、内置和 Lua 工具、MCP 服务、收藏表情、角色图、用量、日志和请求追踪。配置和记录保存在 SQLite，短期模型上下文只在内存中。可选模型角色、记忆和工具默认关闭。
 
-[快速开始](#快速开始) · [文档索引](docs/zh-CN/README.md) · [bot 使用说明](docs/zh-CN/bot.md) · [管理后台](docs/zh-CN/admin.md) · [版本标签与 Linux CI](docs/zh-CN/ci.md) · [Doxygen 使用说明](docs/zh-CN/doxygen.md)
+[快速开始](#快速开始) · [Docker](docs/zh-CN/docker.md) · [文档索引](docs/zh-CN/README.md) · [bot 使用说明](docs/zh-CN/bot.md) · [管理后台](docs/zh-CN/admin.md) · [版本标签与 Linux CI](docs/zh-CN/ci.md) · [Doxygen 使用说明](docs/zh-CN/doxygen.md)
 
 ## 环境与依赖
 
@@ -54,6 +54,18 @@ just run
 ```
 
 bot 监听 `127.0.0.1:8080`，在 `/onebot/event` 接收事件，按访问策略回复好友的私聊消息。包含访问策略、回复设置、聊天记录和用量的 SQLite 数据库保存在 `data/` 中，Git 会忽略这个目录。`config.json` 已提交到仓库，其中没有任何私密信息：密钥只从环境变量读取，`config.json` 里只写变量名。每个配置项的含义，以及 NapCat 如何连接 bot，见 [bot 使用说明](docs/zh-CN/bot.md)。
+
+## Docker
+
+Linux 上安装 Docker Engine 和 Compose 2.24 或更新版本后，可直接构建并运行 bot 与后台页面，无需在主机安装原生工具链：
+
+```sh
+cp .env.example .env
+# 填写 .env 中四个必需的 token/key，然后启动：
+docker compose up --detach --build
+```
+
+Compose 使用主机网络、持久化 SQLite 卷和只读配置，NapCat 独立运行。打开 `http://127.0.0.1:8080`，配置、备份和更新方法见 [Docker 使用说明](docs/zh-CN/docker.md)。
 
 ## 不用 NapCat 试用
 

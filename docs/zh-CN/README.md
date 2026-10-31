@@ -12,6 +12,7 @@
 | --- | --- |
 | [bot 使用说明](bot.md) | 三个插件如何配合、配置、聊天中的行为、不用 NapCat 试用、连接 NapCat、线程、已知限制与测试 |
 | [管理后台](admin.md) | 环境要求、用 Vite 开发、由 bot 提供网页、接口封装与检查 |
+| [Docker](docker.md) | 镜像构建、Compose 启动、环境变量、网络、数据持久化与备份 |
 
 API 参考由 Doxygen 从 `src/` 的注释生成，见 [Doxygen 使用说明](doxygen.md)。
 

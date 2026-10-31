@@ -179,6 +179,7 @@ The admin pages live in `frontend/`: a Vue 3, Vite, and TypeScript app managed w
 - `just docs`: create `build/doxygen` (Doxygen does not create the output path) and run `doxygen Doxyfile`; open `build/doxygen/html/index.html`.
 - Without just: `cmake --workflow --preset linux-debug` configures, builds, and tests.
 - `just frontend-init`, `frontend-dev`, `frontend-build`, `frontend-check`, and `frontend-fix` run `pnpm install --frozen-lockfile`, `dev`, `build`, `check`, and `lint` followed by `format` in `frontend/`. Only assistantbot has them; the recipes above are shared with the two libraries.
+- `just docker-build` builds `assistantbot:local` directly without runtime secrets. `docker-up`, `docker-down`, and `docker-logs` run the matching Compose commands; see Docker deployment below.
 
 There is no lint target. Format with `clang-format -i <files>` (root `.clang-format`), and check with `clang-format --dry-run -Werror <files>`.
 
@@ -201,6 +202,14 @@ The workflows are copies of `../drogon-onebot`'s, which follow `yizhinailong/mcr
   - It appends `WARN_AS_ERROR = FAIL_ON_WARNINGS` through stdin (`( cat Doxyfile; echo ... ) | doxygen -`), so any comment warning fails the run.
   - The `Doxyfile` itself keeps `NO`, because older local Doxygen versions warn about unknown 1.18 tags.
 - Check workflow edits with `actionlint` (with `shellcheck` on `PATH`, so the `run:` scripts are checked too).
+
+## Docker deployment
+
+`Dockerfile` builds the frontend separately from the native release executable, then installs both in an Ubuntu 24.04 runtime image. Keep the LLVM version/key, CMake version/checksums, vcpkg commit, library pins, and pnpm version aligned with the normal build and Linux CI. `BUILD_JOBS` bounds native and vcpkg parallelism. BuildKit caches dependencies and compilation; `.dockerignore` allows only build inputs and excludes local credentials and artifacts. Runtime secrets must never become build arguments or image layers. Runtime `SSL_CERT_FILE`/`SSL_CERT_DIR` select the image's system CA bundle for the vcpkg OpenSSL client.
+
+`compose.yaml` targets Linux host networking to preserve the default loopback listener and NapCat URLs. It supplies the four required environment variables, optionally forwards additional values from local `.env`, mounts the selected startup config read-only, and persists `/app/data` in a named volume. The image runs as UID/GID 10001; new volumes inherit its writable data directory. Compose uses a read-only root and a temporary `/tmp` mount, matching the absolute upload path. Native `./data` and the container volume are separate. Keep `.env` and `config.local.json` untracked.
+
+The healthcheck verifies only `/api/admin/health` on port 8080; custom listener ports require an adjusted healthcheck. Runtime smoke checks use isolated container/volume names, temporary configuration, and dummy credentials, and verify authentication, bundled frontend files, non-root access, and persistence across recreation without contacting real model or NapCat services. Do not stop or modify existing deployment containers. Keep `docs/*/docker.md`, both README links, and both documentation indexes synchronized.
 
 ## Documentation
 

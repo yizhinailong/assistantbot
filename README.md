@@ -6,7 +6,7 @@ A QQ chat bot built on [drogon](https://github.com/drogonframework/drogon). It r
 
 The bot answers friends by default and supports opt-in group conversations. Admin pages manage access, live chat records, reply settings, independent model roles, memory, scheduled tasks, built-in and Lua tools, MCP services, favourite stickers, character images, usage, logs, and HTTP traces. SQLite persists configuration and records; short-term model context stays in memory. Optional model roles, memory, and tools start disabled.
 
-[Quick start](#quick-start) · [Documentation index](docs/en/README.md) · [Bot guide](docs/en/bot.md) · [Admin pages](docs/en/admin.md) · [Version tags and Linux CI](docs/en/ci.md) · [Doxygen guide](docs/en/doxygen.md)
+[Quick start](#quick-start) · [Docker](docs/en/docker.md) · [Documentation index](docs/en/README.md) · [Bot guide](docs/en/bot.md) · [Admin pages](docs/en/admin.md) · [Version tags and Linux CI](docs/en/ci.md) · [Doxygen guide](docs/en/doxygen.md)
 
 ## Requirements
 
@@ -54,6 +54,18 @@ just run
 ```
 
 The bot listens on `127.0.0.1:8080`, receives events at `/onebot/event`, and answers private friend messages according to its access policy. It keeps its SQLite database, including access and reply settings, chat records, and usage, in `data/`, which Git ignores. `config.json` is tracked and holds nothing private: secrets are read only from environment variables, and it holds only their names. The [bot guide](docs/en/bot.md) describes every key, and how NapCat connects to the bot.
+
+## Docker
+
+On Linux with Docker Engine and Compose 2.24 or newer, build and run the bot and admin pages without installing the native toolchain on the host:
+
+```sh
+cp .env.example .env
+# Fill the four required tokens/keys in .env, then start:
+docker compose up --detach --build
+```
+
+Compose uses host networking, a persistent SQLite volume, and a read-only configuration. NapCat runs separately. Open `http://127.0.0.1:8080`; see the [Docker guide](docs/en/docker.md) for configuration, backups, and updates.
 
 ## Trying it without NapCat
 
