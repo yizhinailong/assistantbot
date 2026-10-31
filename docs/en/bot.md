@@ -109,7 +109,7 @@ The same keys can also be saved in the database, under the setting `bot`, and ca
 
 ## Behavior in a chat
 
-**Who gets an answer.** By default the bot answers private messages from every friend of its QQ account (`sub_type` `friend`). The [admin pages](admin.md) can restrict replies to an allowlist and blacklist individual senders. The blacklist takes priority in both modes, including for `/help`, `/reset`, and messages without text. Excluded private friend messages are logged and stored with their ignore reason, but never queued or sent to the model; their commands do not change history. Policy changes apply to new messages, while already accepted work continues. Mode and lists persist in SQLite, with immutable snapshots used for each access check. Group messages and temporary sessions started from a group are always ignored.
+**Who gets an answer.** By default the bot answers private messages from every friend of its QQ account (`sub_type` `friend`). The [admin pages](admin.md) can restrict replies to an allowlist and blacklist individual senders. The blacklist takes priority in both modes, including for `/help`, `/reset`, and messages without text. Excluded private friend messages are logged and stored with their ignore reason, but never queued or sent to the model; their commands do not change history. Policy changes apply to new messages, while already accepted work continues. Mode and lists persist in SQLite, with immutable snapshots used for each access check. Groups start disabled and may be enabled on the Groups page, with mentions, automatic replies, per-group prompts, and administrator commands. Temporary private sessions remain ignored.
 
 **Logging.** Every message the bot receives is logged at INFO level before the bot decides whether to answer it, so group messages and temporary sessions show up too. Every message the bot sends is logged once it has been sent; a reply split into several messages gives one line per message:
 
@@ -128,13 +128,13 @@ The number at the start is the QQ account the bot is logged in as. Then comes th
 | `/help` | Replies with a short help text |
 | `/reset` | Clears the sender's history and queued messages, then confirms |
 
-**Messages without text.** The bot reads only the text segments of a message. A message with no text, such as a lone image or sticker, gets a notice that only text is supported. In a message that mixes text and images, only the text is used.
+**Images and other media.** With the optional vision role enabled, up to four HTTP images in an accepted message are described before queuing the prompt. Without a usable vision description or text, the existing text-only notice applies. Other media are represented only by placeholders in stored chat records.
 
-**Conversation history.** Each user has their own history of turns, kept in memory. The model sees the system prompt, the last `history_turns` turns, and the new message. A history is cleared by `/reset`, after `idle_reset_minutes` of silence, and when the app restarts.
+**Conversation history.** Each friend and group conversation has its own history of turns, kept in memory. The model sees the system prompt, the last `history_turns` turns, and the new message. A history is cleared by `/reset`, after `idle_reset_minutes` of silence, and when the app restarts.
 
-**Chat records.** Each incoming private friend message and outgoing part is appended separately to SQLite, including ignored messages, commands, model failure notices, and failed delivery attempts. The [sessions page](admin.md) paginates them and receives live updates. Reset clears model context and pending messages while preserving stored records; in-flight replies still finish without restoring a reset turn. Stored records do not restore context after restart.
+**Chat records.** Each incoming private friend or group message and outgoing part is appended separately to SQLite, including ignored messages, commands, model failure notices, and failed delivery attempts. The [sessions page](admin.md) paginates them and receives live updates. Reset clears model context and pending messages while preserving stored records; in-flight replies still finish without restoring a reset turn. Stored records do not restore context after restart.
 
-**Messages sent while the bot is answering.** One user never has two model requests at once. Messages that arrive while a reply is being generated are queued, then sent to the model together, joined by line breaks, in one request after the current reply. Several short messages typed in a row therefore get one answer instead of several.
+**Messages sent while the bot is answering.** Each conversation processes one reply at a time. Incoming image analysis can overlap with a reply that is already running. Messages that arrive while a reply is being generated are queued, then sent to the model together, joined by line breaks, in one request after the current reply. Several short messages typed in a row therefore get one answer instead of several.
 
 **Replies.** QQ shows Markdown literally, so the bot removes heading markers, `**`, backticks, and code fence lines from the reply (the lines inside a fence stay). A reply longer than `max_reply_chars` characters is split, at line breaks where possible. When the model request fails, times out, or returns no text, the bot sends an apology, logs the reason at ERROR level, and adds no model turn. The incoming message and attempted failure notice remain in chat records.
 
@@ -175,10 +175,10 @@ The SQLite database has one connection, on a thread of its own, so its statement
 
 ## Known limitations
 
-- Only private chats are answered; group chats are not supported.
-- Only text is understood and sent. Images and other media are not passed to the model, and the model cannot call tools.
+- Groups require explicit enablement; private temporary sessions are unsupported.
+- Vision, independent models, memory, and tools require explicit configuration. See the [admin guide](admin.md) for supported capabilities and protocol limits.
 - Model context lives in memory and is lost when the app restarts; stored chat records remain available.
-- Access defaults to all friends and can be restricted in the admin pages; apart from one request at a time per user, there is no rate limit.
+- Access defaults to all friends and can be restricted in the admin pages; apart from serial reply processing per conversation, there is no rate limit.
 
 ## Tests
 

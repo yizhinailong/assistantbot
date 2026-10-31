@@ -38,7 +38,7 @@ bot 带有一组用于管理它的网页，位于 `frontend/`。网页用 Vue 3�
 
 打开 `/#/sessions`，可以搜索好友、查看最近的模型对话轮次、加载更早的消息并重置上下文。列表显示 QQ 号、昵称、保留轮数、最后活动时间和是否正在等待回复。重启后仍能看到有聊天记录的好友，其内存轮数为零。
 
-每条收到的私聊好友消息都单独追加到 SQLite，包括命令、媒体占位文本，以及被访问策略或暂停拦截的消息。发出的每个分段分别记为 `sent` 或 `failed`，失败时保留发送错误；模型失败时发出的提示也会保存。记录使用服务端 UTC Unix 时间戳和十进制字符串 ID。群聊和临时会话只记日志。存储失败会记日志，不阻断回复。
+每条收到的私聊好友或群聊消息都单独追加到 SQLite，包括命令、媒体占位文本，以及被访问策略或暂停拦截的消息。发出的每个分段分别记为 `sent` 或 `failed`，失败时保留发送错误；模型失败时发出的提示也会保存。记录使用服务端 UTC Unix 时间戳和十进制字符串 ID。临时私聊会话只记日志。存储失败会记日志，不阻断回复。
 
 模型上下文仍只保存在内存，不从聊天记录重建。页面重置调用与 `/reset` 相同的 `PrivateChat::Reset`，清空上下文和待处理消息；正在生成的回复仍会完成，但不会写回已清空的上下文。重置保留聊天记录，页面操作不会向 QQ 发送确认消息。
 
@@ -58,7 +58,7 @@ bot 带有一组用于管理它的网页，位于 `frontend/`。网页用 Vue 3�
 
 `GET /api/admin/usage?from=&to=` 使用 UTC Unix 秒，包含 `from`、不包含 `to`，默认最近 30 个 UTC 日（含当天），区间必须为正且不超过 366 天。结果包含 `total`、独立于所选区间的 `today`、以零点 `timestamp` 标识的 UTC `days`，以及按十进制字符串 `user_id` 分组的 `users`。全部分组来自同一次 SQLite 读取快照，避免并发追加时各部分不一致。
 
-每次模型请求完成后，保存 QQ 号、模型、成功状态、输入/输出/总令牌和可选的缓存命中数。drogon-openai v0.2.0 提供 `prompt_tokens_details.cached_tokens`，没有该字段时读取 DeepSeek 的 `usage.raw.prompt_cache_hit_tokens`。未知缓存报告保存为 SQL NULL，明确报告零命中也计入 `cached_requests`。Schema 3 新增聊天记录，Schema 4 新增缓存命中字段，保留原有设置和用量。用量保存成功后广播 `usage_updated`，页面重新读取当前所选区间。
+每次模型请求完成后，保存 QQ 号、模型、成功状态、输入/输出/总令牌和可选的缓存命中数。drogon-openai v0.3.0 提供 `prompt_tokens_details.cached_tokens`，没有该字段时读取 DeepSeek 的 `usage.raw.prompt_cache_hit_tokens`。未知缓存报告保存为 SQL NULL，明确报告零命中也计入 `cached_requests`。Schema 3 新增聊天记录，Schema 4 新增缓存命中字段，保留原有设置和用量。用量保存成功后广播 `usage_updated`，页面重新读取当前所选区间。
 
 ## 日志
 
@@ -167,9 +167,9 @@ Linux CI 在单独的任务中运行 `pnpm check` 和构建，见 [版本标签�
 
 ## 请求追踪
 
-请求追踪页在内存中保留最近 50 次模型、OneBot 和 MCP 请求，显示方法、地址、状态、毫秒耗时和截断后的请求/响应正文。可以按来源筛选、暂停自动刷新、清空缓冲和下载当前筛选结果的 JSON。管理副本会去掉认证头、已配置的密钥、凭据字段和内联图片数据；正文仍可能包含对话内容。重启后不保留追踪。
+请求追踪页在内存中保留最近 50 次模型、OneBot、MCP 和 Lua HTTP 请求，显示方法、地址、状态、毫秒耗时和截断后的请求/响应正文。可以按来源筛选、暂停自动刷新、清空缓冲和下载当前筛选结果的 JSON。管理副本会去掉认证头、已配置的密钥、凭据字段和内联图片数据；正文仍可能包含对话内容。重启后不保留追踪。
 
-`GET /api/admin/http-traces?source=model|onebot|mcp` 读取缓冲，省略来源则读取全部；`DELETE /api/admin/http-traces` 清空；`GET /api/admin/http-traces/download` 下载 JSON，接受相同筛选。`/api/admin/ws` 用 `http_trace_created` 通知新增记录。OneBot 反向 WebSocket 动作不产生 HTTP 追踪。
+`GET /api/admin/http-traces?source=model|onebot|mcp|tool` 读取缓冲，省略来源则读取全部；`DELETE /api/admin/http-traces` 清空；`GET /api/admin/http-traces/download` 下载 JSON，接受相同筛选。`/api/admin/ws` 用 `http_trace_created` 通知新增记录。OneBot 反向 WebSocket 动作不产生 HTTP 追踪。
 
 ## 群聊
 
@@ -182,3 +182,56 @@ Linux CI 在单独的任务中运行 `pnpm check` 和构建，见 [版本标签�
 表情与角色图页读取最多 200 个 NapCat 收藏表情，可以修改描述、添加和删除。添加时填写 **NapCat 主机上** 已存在的图片路径；NapCat 在容器里运行时，也要使用容器内路径。删除会改变 QQ 账号的收藏。这些接口使用 NapCat 扩展，其他 OneBot 实现可能返回 502 和动作错误。接口为 `GET/POST /api/admin/stickers`、`PUT/DELETE /api/admin/stickers/{res_id}`。
 
 角色图支持最大 8 MiB 的静态 PNG、JPEG、WebP，保存在 SQLite，可供生图工具使用。`GET/POST/DELETE /api/admin/character-image` 分别读取、替换和删除；POST 接收 `{data_url, revision}`，DELETE 接受 `?revision=`，旧版本返回 409。请求正文上限设为 12 MiB，以容纳 base64 编码。
+
+## 模型角色与执行
+
+“模型与执行”页面配置 `router`、`decision`、`executor`、`executor_fallback`、`thinking`、`vision`、`image_generation`、`memory` 和 `embedding`。可选角色默认关闭；执行角色关闭时使用主接口和回复设置。每个角色可独立设置模型、地址、密钥环境变量名、超时、重试、令牌上限、温度和推理强度。指定自定义地址后会清除继承的认证信息，需要明确填写环境变量名。接口不返回实际密钥。
+
+任务分析和回复判断在执行模型之前运行。深度思考和图片生成由工具调用；图片识别会描述已接受消息中的 HTTP 图片，并支持对这些原图继续提问。记忆与向量角色用于整理和检索。执行请求失败时可使用备用角色。所有模型请求，包括辅助请求和失败请求，都单独记录用量；图片请求不自动重试。
+
+执行限制包括最大工具轮数（默认 6）、工具结果字符数（4000）、MCP 每页数量（10）、每次启用数量（4）和每次回复启用总数（12）。每轮回复使用一份功能设置快照，修改从下一轮生效。只有实际提供给模型的工具可以执行，同一个调用 ID 不会重复产生副作用；一次模型响应最多接受 16 个调用。
+
+## 人物与记忆
+
+“人物与记忆”页面可编辑会话外号、人物档案、关系、近期互动、好感度和长期事实。选择好友或群聊并填写 QQ 后读取会话，再编辑或新增记录。人物资料按 QQ 跨会话共享，外号和长期记忆按会话隔离。保存和删除都检查版本，旧页面不能覆盖新修改。记忆和好感度默认关闭；关闭好感度会保留已存数值，但不注入模型，也不自动更新。
+
+启用记忆后，执行模型会收到明确标记为参考数据的上下文。可选记忆角色每隔 `maintenance_turns` 轮成功回复（默认 10）处理累积的有界对话，失败批次保留以便再次尝试；只整理已标识发送者明确说过的事实，每批好感度最多变化 ±5，总范围为 [-100, 100]。本实现不运行每日人物整理。向量角色将向量与接口地址、模型身份一起保存，检索跳过空间或维度不一致的数据，使用余弦相似度；未启用向量时按字面子串匹配。聊天记录仍不用于重启后恢复短期上下文。
+
+| 接口 | 请求 / 结果 |
+| --- | --- |
+| `GET /api/admin/memory-documents/{kind}` | 列出 `aliases` 或 `people` 文档 |
+| `GET/PUT/DELETE /api/admin/memory-documents/{kind}/{key}` | PUT `{value, revision}`；DELETE `?revision=` |
+| `GET /api/admin/memories?session=&limit=` | 有界查询，返回维度而不返回向量 |
+| `POST /api/admin/memories` | `{session, content}` |
+| `PUT /api/admin/memories/{id}` | `{session, content, revision}` |
+| `DELETE /api/admin/memories/{id}?revision=` | 按版本删除 |
+| `POST /api/admin/memories/search` | `{session, query}`，返回相关记忆 |
+
+## 定时任务
+
+“定时任务”页面创建、查询和取消持久化提醒。页面输入本地时间，浏览器转换为 UTC 时间戳；每日任务固定在同一 UTC 时刻、每 24 小时重复。每个任务属于一个会话，同一会话最多保留 100 个待执行任务。`GET/POST /api/admin/tasks` 查询或创建 `{session, due_at, content, daily}`，GET 可用 `?session=` 筛选；`POST /api/admin/tasks/{id}/cancel` 只取消待执行任务，已开始执行时返回 409。
+
+每秒轮询一次，到期后先原子认领，再把内容交给正常聊天流程。执行前重新检查暂停、私聊访问策略、发送者黑名单和群启用状态，失败保留在列表中。重启会将中断的运行任务标为失败，不重放发送；待执行任务保留。错过时间的每日任务执行一次后推进到下一个未来 UTC 时刻，避免自动重复不确定的发送。运行中的任务不支持取消。
+
+## 内置工具与 Lua
+
+“工具配置”页面启用工具循环，修改每个内置工具的开关和描述。`GET /api/admin/tools/builtin` 返回固定目录，包含最终回复、不回复、引用、中途回复、思考、看图、记忆、提醒、表情、图片、收藏表情管理、群提及和禁言，以及 MCP 发现与选择。群工具不会出现在私聊请求中。记忆或辅助模型关闭时，其对应工具也不提供。来源消息元数据包含当前消息 ID 和图片数；`ask_images` 使用从 0 开始的图片序号，只解析该消息里的 URL。模型工具和 Lua 宿主只向当前会话发送消息或创建任务，取消任务和删除记忆也限定当前会话；引用仅允许当前收到的消息。文本和引用工具回复遵守 `max_reply_chars`，仅第一段携带引用。即使模型参数请求其他收件人，这些限制也会生效。
+
+Lua 工具以带版本的文档保存在 SQLite。页面支持新增、编辑、删除、JSON 导入导出、示例参数和测试。测试模拟 HTTP、发消息和提醒，只返回操作列表，不产生真实副作用。接口是 `GET /api/admin/tools/lua`、`GET/PUT/DELETE /api/admin/tools/lua/{name}` 和 `POST /api/admin/tools/lua-test`；PUT 使用 `{value, revision}`，DELETE 使用 `?revision=`，测试使用 `{name, value, arguments}`。文档字段为 `enabled`、`description`、`parameters` 和 `script`。名称是最长 48 字符的 ASCII 标识符，不能占用内置或 MCP 保留名。参数支持经过验证的 JSON Schema 子集：对象、数组、基本类型、必填字段、枚举、数值和长度范围、额外字段开关。
+
+```lua
+function run(args, ctx)
+  local response = http.get("https://example.com/search?q=" .. url.encode(args.query))
+  return {status = response.status, body = response.body}
+end
+```
+
+每次调用创建独立受限状态。`ctx` 包含字符串 `session_id`、`user_id` 和布尔值 `is_private`。宿主提供 `http.request/get/post`、`bot.send_message`、`bot.schedule(due_at, text, daily)`；HTTP 返回 `ok`、`status`、`headers`、`body` 或 `error`，4xx/5xx 仍是有效响应，不跟随重定向。另有 `json.encode/decode/null` 和 `url.encode`。不开放文件、系统、包、调试、动态加载和直接协程接口。限制为：源码 256 KiB、Lua 分配 16 MiB、100 万指令、100 ms 活跃执行时间（不含等待宿主）、32 次宿主操作、HTTP/JSON 1 MiB、JSON 深度 32，并限制转换的总节点和文本量。标准模式匹配接口不开放，`string.find` 仅按字面查找。HTTP 可以访问 bot 所在网络，因此只启用打算执行的工具。
+
+## MCP 服务
+
+“MCP 服务”页面编辑最多 16 个 Streamable HTTP 服务，并测试已保存配置。每项包含唯一名称、用途、URL、令牌环境变量名、开关、超时和明确的协议版本。`POST /api/admin/mcp/{name}/test` 发现工具并关闭远端会话；配置通过 `mcp` 功能区保存，实际凭据只在服务端读取，不返回页面。
+
+支持 [2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports)（初始化、初始化通知、可选会话头和 DELETE）与 [2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http)（无状态元数据、方法与名称头、验证后的基本类型参数头）。支持 JSON 和有限长度的 SSE 响应；发现最多读取 20 个不同分页、256 个工具，失败变为有界工具错误。不支持 stdio、旧版 HTTP+SSE、OAuth、prompts/resources、sampling 和交互输入请求。
+
+模型先看到已启用服务的用途目录，调用 `mcp_list_tools` 和 `mcp_enable_tools` 后，被选中的参数 schema 才会进入后续请求。调用名使用 `mcp_<服务名>_<目录序号>`，避免远端名称无效或冲突。选择状态和发现缓存仅属于本轮回复，结束时关闭远端会话。调用逐个执行且不自动重试；结果在长度限制内保留 `content`、`structuredContent` 和 `isError`。MCP 和 Lua HTTP 也进入请求追踪，对应 `source=mcp` 和 `source=tool`。
