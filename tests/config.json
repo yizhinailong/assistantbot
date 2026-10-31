@@ -1,0 +1,63 @@
+{
+  "app": {
+    "number_of_threads": 1,
+    "document_root": "/tmp/assistantbot-test",
+    "upload_path": "uploads",
+    "log": {
+      "log_path": "",
+      "logfile_base_name": "",
+      "log_size_limit": 100000000,
+      "log_level": "DEBUG"
+    }
+  },
+  "listeners": [
+    {
+      "address": "127.0.0.1",
+      "port": 18082
+    }
+  ],
+  "plugins": [
+    {
+      "name": "admin::Auth",
+      "config": {
+        "admin_token_env": "ASSISTANTBOT_TEST_ADMIN_TOKEN"
+      }
+    },
+    {
+      "name": "drogon_onebot::OneBotClient",
+      "config": {
+        "base_url": "http://127.0.0.1:18082/napcat",
+        "event_path": "/onebot/event",
+        "secret_env": "ASSISTANTBOT_TEST_SECRET"
+      }
+    },
+    {
+      "name": "drogon_openai::OpenAIClient",
+      "config": {
+        "base_url": "http://127.0.0.1:18082/v1",
+        "model": "fake-model"
+      }
+    },
+    {
+      "name": "storage::Database",
+      "config": {
+        "data_dir": "/tmp/assistantbot-test/data"
+      }
+    },
+    {
+      "name": "controllers::AssistantBot",
+      "dependencies": ["drogon_onebot::OneBotClient", "drogon_openai::OpenAIClient", "storage::Database"],
+      "config": {
+        "system_prompt": "You are a test assistant.",
+        "history_turns": 2,
+        "request_timeout": 5,
+        "max_reply_chars": 100,
+        "model": ""
+      }
+    },
+    {
+      "name": "admin::Runtime",
+      "dependencies": ["controllers::AssistantBot", "drogon_onebot::OneBotClient", "drogon_openai::OpenAIClient", "storage::Database"]
+    }
+  ]
+}
