@@ -15,7 +15,7 @@ DROGON_TEST(SessionRoutesRequireAuthenticationAndValidateIdentifiersAndCursors) 
         CHECK(test_support::request_admin(path, drogon::Get, {}, "")->statusCode() == drogon::k401Unauthorized);
     }
     CHECK(test_support::request_admin("/api/admin/sessions/42/reset", drogon::Post, {}, "")->statusCode() == drogon::k401Unauthorized);
-    for (auto const* qq : { "0", "-1", "123x", "9223372036854775808" }) {
+    for (auto const* qq : { "0", "-0", "-9223372036854775808", "123x", "9223372036854775808" }) {
         CHECK(test_support::request_admin(std::string{ "/api/admin/sessions/" } + qq)->statusCode() == drogon::k400BadRequest);
     }
     for (auto const* query : { "limit=0", "limit=201", "limit=", "before=0", "after=-1", "before=3&after=0", "after=9223372036854775808" }) {
@@ -26,6 +26,7 @@ DROGON_TEST(SessionRoutesRequireAuthenticationAndValidateIdentifiersAndCursors) 
     CHECK(test_support::request_admin("/api/admin/sessions/999999")->statusCode() == drogon::k404NotFound);
     CHECK(test_support::request_admin("/api/admin/sessions/999999/reset", drogon::Post)->statusCode() == drogon::k404NotFound);
     CHECK(test_support::success(test_support::request_admin("/api/admin/sessions/999999/messages"))["messages"].empty());
+    CHECK(test_support::request_admin("/api/admin/sessions/-999999")->statusCode() == drogon::k404NotFound);
     CHECK(chat->SessionCount() == before);
 }
 
