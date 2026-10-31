@@ -1,5 +1,5 @@
 /**
- * @file http_traces.cpp
+ * @file admin/http_traces.cpp
  * @brief Collect redacted request attempts without retaining authorization headers.
  */
 #include "admin/http_traces.hpp"
@@ -201,13 +201,13 @@ namespace admin {
 
     /**
      * @brief Read the most recent matching requests in chronological order.
-     * @param source Empty, model, onebot, or mcp.
+     * @param source Empty, model, onebot, mcp, or tool.
      * @return Record array and ring capacity.
      * @throws std::invalid_argument If the source is unknown.
      */
     auto read_http_traces(std::string const& source) -> Json::Value {
-        if (!source.empty() && source != "model" && source != "onebot" && source != "mcp") {
-            throw std::invalid_argument{ "source must be model, onebot, or mcp" };
+        if (!source.empty() && source != "model" && source != "onebot" && source != "mcp" && source != "tool") {
+            throw std::invalid_argument{ "source must be model, onebot, mcp, or tool" };
         }
         Json::Value result{ Json::objectValue };
         result["capacity"] = 50;

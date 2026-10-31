@@ -1,5 +1,5 @@
 /**
- * @file http_traces.hpp
+ * @file admin/http_traces.hpp
  * @brief Retain bounded, redacted diagnostics for outgoing HTTP requests.
  */
 #pragma once
@@ -32,7 +32,7 @@ namespace admin {
 
     /**
      * @brief Read the most recent matching requests in chronological order.
-     * @param source Empty, model, onebot, or mcp.
+     * @param source Empty, model, onebot, mcp, or tool.
      * @return Record array and ring capacity.
      * @throws std::invalid_argument If the source is unknown.
      */

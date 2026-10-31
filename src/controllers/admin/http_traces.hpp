@@ -1,5 +1,5 @@
 /**
- * @file http_traces.hpp
+ * @file controllers/admin/http_traces.hpp
  * @brief Declare authenticated request diagnostic endpoints.
  */
 #pragma once

@@ -1,5 +1,5 @@
 /**
- * @file http_traces.cpp
+ * @file controllers/admin/http_traces.cpp
  * @brief Serve buffered request traces and JSON downloads.
  */
 #include "controllers/admin/http_traces.hpp"
