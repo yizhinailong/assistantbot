@@ -274,7 +274,9 @@ onUnmounted(() => {
           @click="selected = session.user_id"
         >
           <strong>{{ session.nickname || session.user_id }}</strong
-          ><span class="muted">{{ session.user_id }}</span>
+          ><span class="muted">{{
+            session.user_id.startsWith('-') ? '群 ' + session.user_id.slice(1) : session.user_id
+          }}</span>
           <span>{{ session.turns }} 轮 · {{ session.busy ? '等待模型回复' : '空闲' }}</span
           ><small class="muted">{{ time(session.last_active) }}</small>
         </button>
