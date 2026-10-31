@@ -199,3 +199,85 @@ jobs:
       # pnpm check has already type-checked, so only bundle.
       - name: Build
         run: pnpm build-only
+
+  docker:
+    name: Publish versioned Docker Hub image
+    needs: [test, frontend]
+    if: ${{ github.ref_type == 'tag' && github.repository == 'yizhinailong/assistantbot' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    concurrency:
+      group: dockerhub-${{ github.repository }}-${{ github.ref }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        shell: bash
+    env:
+      DOCKERHUB_IMAGE: yizhinailong/assistantbot
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Read and verify project version
+        id: version
+        shell: python
+        run: |
+          import os
+          import re
+          from pathlib import Path
+
+          text = re.sub(r"#.*", "", Path("CMakeLists.txt").read_text(encoding="utf-8"))
+          project = re.search(r"\bproject\s*\(([^)]*)\)", text, re.IGNORECASE)
+          if project is None:
+              raise ValueError("CMakeLists.txt has no project() call")
+          arguments = project.group(1).split()
+          if "VERSION" not in arguments or arguments.index("VERSION") + 1 == len(arguments):
+              raise ValueError("project() has no VERSION")
+          version = arguments[arguments.index("VERSION") + 1]
+          if re.fullmatch(r"[0-9]+(?:\.[0-9]+){0,3}", version) is None:
+              raise ValueError(f"project() VERSION {version!r} is not major[.minor[.patch[.tweak]]]")
+          if os.environ["GITHUB_REF_NAME"] != f"v{version}":
+              raise ValueError("The version tag must match project() VERSION")
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
+              output.write(f"version={version}\n")
+          print(f"Publishing {os.environ['DOCKERHUB_IMAGE']}:{version} and latest")
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          username: yizhinailong
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push release image
+        id: image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.DOCKERHUB_IMAGE }}:${{ steps.version.outputs.version }}
+            ${{ env.DOCKERHUB_IMAGE }}:latest
+          labels: |
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=assistantbot-amd64
+          cache-to: type=gha,mode=max,scope=assistantbot-amd64
+
+      - name: Summarize publication
+        env:
+          PROJECT_VERSION: ${{ steps.version.outputs.version }}
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          {
+            printf 'Published **%s:%s** and **%s:latest** for **linux/amd64**.\n\n' \
+              "$DOCKERHUB_IMAGE" "$PROJECT_VERSION" "$DOCKERHUB_IMAGE"
+            printf 'Digest: **%s**\n' "$IMAGE_DIGEST"
+          } >> "$GITHUB_STEP_SUMMARY"
