@@ -8,6 +8,7 @@ import SessionsView from '@/views/SessionsView.vue'
 import ReplySettingsView from '@/views/ReplySettingsView.vue'
 import UsageView from '@/views/UsageView.vue'
 import LogsView from '@/views/LogsView.vue'
+import HttpTracesView from '@/views/HttpTracesView.vue'
 
 // Hash history keeps every page at `/`, so drogon serves index.html from document_root
 // without a fallback route for the page paths.
@@ -21,6 +22,7 @@ const router = createRouter({
     { path: '/settings', name: 'settings', component: ReplySettingsView },
     { path: '/usage', name: 'usage', component: UsageView },
     { path: '/logs', name: 'logs', component: LogsView },
+    { path: '/http-traces', name: 'http-traces', component: HttpTracesView },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })

@@ -16,6 +16,7 @@ const pages = [
   { to: '/access', label: '访问控制' },
   { to: '/usage', label: '用量统计' },
   { to: '/logs', label: '日志' },
+  { to: '/http-traces', label: '请求追踪' },
 ]
 
 async function signOut(): Promise<void> {

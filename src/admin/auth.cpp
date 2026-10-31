@@ -18,6 +18,7 @@
 #include <drogon_onebot/onebot_client.hpp>
 #include <drogon_openai/openai_client.hpp>
 
+#include "admin/http_traces.hpp"
 #include "admin/live_events.hpp"
 
 namespace admin {
@@ -79,6 +80,7 @@ namespace admin {
                 secrets.push_back(openai->Config().api_key);
                 secrets.push_back(openai->Config().webhook_secret);
             }
+            configure_http_traces(secrets);
             start_live_events(std::move(secrets));
         });
         drogon::app().registerPreRoutingAdvice(

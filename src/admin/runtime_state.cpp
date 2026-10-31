@@ -13,6 +13,7 @@
 
 #include <drogon_openai/openai_client.hpp>
 
+#include "admin/http_traces.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
 #include "storage/database.hpp"
 #include "storage/usage.hpp"
@@ -50,7 +51,7 @@ namespace admin {
             throw std::invalid_argument{ "admin::Runtime: controllers::AssistantBot, drogon_onebot::OneBotClient, drogon_openai::OpenAIClient, and storage::Database must be loaded and listed under dependencies" };
         }
         m_database = database->Client();
-        m_onebot = onebot->NewOneBotClient();
+        m_onebot = admin::traced_onebot();
         m_model = openai->Config().model;
         m_started_at = std::chrono::duration_cast<std::chrono::seconds>(
                            std::chrono::system_clock::now().time_since_epoch()

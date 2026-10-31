@@ -12,6 +12,7 @@
 #include <drogon_onebot/onebot_client.hpp>
 #include <drogon_openai/openai_client.hpp>
 
+#include "admin/http_traces.hpp"
 #include "common/text.hpp"
 #include "storage/database.hpp"
 #include "workflow/access_control.hpp"
@@ -101,7 +102,7 @@ namespace controllers {
 
         // Drogon starts the plugins before any event loop runs, so reading the database blocks safely.
         m_settings = std::make_shared<workflow::BotSettings>(config, database->Client());
-        m_chat = std::make_shared<workflow::PrivateChat>(m_settings, onebot->NewOneBotClient(), openai->NewOpenAIClient(), database->Client(), openai->Config().model);
+        m_chat = std::make_shared<workflow::PrivateChat>(m_settings, admin::traced_onebot(), admin::traced_model(openai->NewOpenAIClient()), database->Client(), openai->Config().model);
         m_paused = std::make_shared<std::atomic_bool>(false);
         m_access = std::make_shared<workflow::AccessControl>(database->Client());
         onebot->OnMessage([chat = m_chat, paused = m_paused, access = m_access](drogon_onebot::MessageEvent event) -> drogon::Task<> {

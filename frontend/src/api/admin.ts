@@ -257,3 +257,28 @@ export function getLogs(filter: LogFilter, after?: string): Promise<LogBatch> {
 export function setLogLevel(level: LogLevel): Promise<{ level: LogLevel }> {
   return request('/api/admin/log-level', { method: 'PUT', body: { level } })
 }
+
+export interface HttpTrace {
+  id: string
+  timestamp: number
+  source: 'model' | 'onebot' | 'mcp'
+  role?: string
+  session?: string
+  method: string
+  url: string
+  status: number
+  elapsed_ms: number
+  request_body: string
+  response_body: string
+  error: string
+  request_truncated: boolean
+  response_truncated: boolean
+}
+
+export function getHttpTraces(source = ''): Promise<{ capacity: number; traces: HttpTrace[] }> {
+  return request(`/api/admin/http-traces?source=${encodeURIComponent(source)}`)
+}
+
+export function clearHttpTraces(): Promise<{ capacity: number; traces: HttpTrace[] }> {
+  return request('/api/admin/http-traces', { method: 'DELETE' })
+}

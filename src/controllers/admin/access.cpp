@@ -13,6 +13,7 @@
 
 #include <drogon_onebot/onebot_client.hpp>
 
+#include "admin/http_traces.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
 #include "workflow/access_control.hpp"
 
@@ -187,7 +188,7 @@ namespace controllers {
         drogon::HttpRequestPtr /*req*/
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
         try {
-            auto const client{ drogon::app().getPlugin<drogon_onebot::OneBotClient>()->NewOneBotClient() };
+            auto const client{ admin::traced_onebot() };
             auto const friends{ co_await client.GetFriendList({ .timeout = 2.0 }) };
             if (!friends) {
                 co_return json_error("could not read friends from NapCat", drogon::k502BadGateway);
