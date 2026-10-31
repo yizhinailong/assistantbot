@@ -8,7 +8,8 @@
       "logfile_base_name": "",
       "log_size_limit": 100000000,
       "log_level": "DEBUG"
-    }
+    },
+    "client_max_body_size": "12M"
   },
   "listeners": [
     {
@@ -46,7 +47,11 @@
     },
     {
       "name": "controllers::AssistantBot",
-      "dependencies": ["drogon_onebot::OneBotClient", "drogon_openai::OpenAIClient", "storage::Database"],
+      "dependencies": [
+        "drogon_onebot::OneBotClient",
+        "drogon_openai::OpenAIClient",
+        "storage::Database"
+      ],
       "config": {
         "system_prompt": "You are a test assistant.",
         "history_turns": 2,
@@ -57,7 +62,12 @@
     },
     {
       "name": "admin::Runtime",
-      "dependencies": ["controllers::AssistantBot", "drogon_onebot::OneBotClient", "drogon_openai::OpenAIClient", "storage::Database"]
+      "dependencies": [
+        "controllers::AssistantBot",
+        "drogon_onebot::OneBotClient",
+        "drogon_openai::OpenAIClient",
+        "storage::Database"
+      ]
     }
   ]
 }
