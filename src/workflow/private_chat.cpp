@@ -165,7 +165,32 @@ namespace workflow {
         params.timeout = config->request_timeout;
 
         if (m_agent) {
-            auto result{ co_await m_agent->Run(peer, std::move(params), prompt, [this, peer](drogon_onebot::Message message, std::string display) -> drogon::Task<Json::Value> {
+            auto result{ co_await m_agent->Run(peer, std::move(params), prompt, [this, peer, maximum = config->max_reply_chars](drogon_onebot::Message message, std::string display) -> drogon::Task<Json::Value> {
+                std::string text{};
+                bool text_only{ true };
+                drogon_onebot::Message quotes{};
+                for (auto const& segment : message) {
+                    if (segment.type == "text") {
+                        text += segment.data["text"].asString();
+                    } else if (segment.type == "reply") {
+                        quotes.push_back(segment);
+                    } else {
+                        text_only = false;
+                    }
+                }
+                if (text_only && !text.empty() && text == display) {
+                    Json::Value result{};
+                    for (auto& part : common::split_reply(text, maximum)) {
+                        auto segments{ std::move(quotes) };
+                        quotes.clear();
+                        segments.push_back(drogon_onebot::MessageSegment::Text(part));
+                        result = co_await SendMessage(peer, std::move(segments), part);
+                        if (!result["ok"].asBool()) {
+                            co_return result;
+                        }
+                    }
+                    co_return result;
+                }
                 co_return co_await SendMessage(peer, std::move(message), std::move(display));
             }) };
             if (!result.completed) {
