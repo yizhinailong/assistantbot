@@ -93,6 +93,63 @@ export function deleteCharacter(revision: string): Promise<FeatureRecord<null>> 
   })
 }
 
+export interface PersonMemory {
+  profile: string[]
+  relationship: string[]
+  recent_interactions: string[]
+  affinity: number
+}
+export interface Aliases {
+  aliases: { qq: string; names: string[] }[]
+}
+export interface LongMemory {
+  id: string
+  session_id: string
+  content: string
+  revision: string
+  created_at: number
+  updated_at: number
+  dimensions: number
+  embedding_space: string
+  score?: number
+}
+export interface MemoryConfig {
+  enabled: boolean
+  affinity_enabled: boolean
+  max_memories: number
+  maintenance_turns: number
+  similarity_threshold: number
+}
+export function getMemoryDocument<T>(kind: string, key: string): Promise<FeatureRecord<T | null>> {
+  return request(`/api/admin/memory-documents/${kind}/${encodeURIComponent(key)}`)
+}
+export function saveMemoryDocument<T>(
+  kind: string,
+  key: string,
+  value: T,
+  revision: string,
+): Promise<FeatureRecord<T>> {
+  return request(`/api/admin/memory-documents/${kind}/${encodeURIComponent(key)}`, {
+    method: 'PUT',
+    body: { value, revision },
+  })
+}
+export function getMemories(session: string): Promise<{ memories: LongMemory[] }> {
+  return request(`/api/admin/memories?${new URLSearchParams({ session, limit: '2000' })}`)
+}
+export function saveMemory(
+  session: string,
+  content: string,
+  entry?: LongMemory,
+): Promise<LongMemory> {
+  return request(entry ? `/api/admin/memories/${entry.id}` : '/api/admin/memories', {
+    method: entry ? 'PUT' : 'POST',
+    body: { session, content, revision: entry?.revision },
+  })
+}
+export function deleteMemory(entry: LongMemory): Promise<unknown> {
+  return request(`/api/admin/memories/${entry.id}?revision=${entry.revision}`, { method: 'DELETE' })
+}
 export interface ModelRole {
   enabled: boolean
   base_url: string
