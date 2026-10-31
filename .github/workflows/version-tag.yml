@@ -1,0 +1,130 @@
+name: Create Version Tag
+
+on:
+  push:
+    branches: [master]
+    paths: [CMakeLists.txt]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tag:
+    name: Tag project version
+    if: ${{ !github.event.deleted && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # Serialize retries of one push without dropping other version changes in the queue.
+    concurrency:
+      group: create-version-tag-${{ github.sha }}
+      cancel-in-progress: false
+    permissions:
+      actions: write
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Detect project version change
+        id: version
+        shell: python
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          import os
+          import re
+          from pathlib import Path
+          import subprocess
+
+          # The first project() call must carry VERSION as a literal; line comments are ignored.
+          PROJECT_CALL = re.compile(r"\bproject\s*\(([^)]*)\)", re.IGNORECASE)
+          VERSION = re.compile(r"[0-9]+(?:\.[0-9]+){0,3}")
+
+          def git(*args, check=True):
+              return subprocess.run(["git", *args], check=check, capture_output=True, text=True, encoding="utf-8")
+
+          def version_at(commit):
+              text = re.sub(r"#.*", "", git("show", f"{commit}:CMakeLists.txt").stdout)
+              call = PROJECT_CALL.search(text)
+              if call is None:
+                  raise ValueError("CMakeLists.txt has no project() call")
+              args = call.group(1).split()
+              if "VERSION" not in args or args.index("VERSION") + 1 == len(args):
+                  raise ValueError("project() has no VERSION")
+              version = args[args.index("VERSION") + 1]
+              if not VERSION.fullmatch(version):
+                  raise ValueError(f"project() VERSION {version!r} is not major[.minor[.patch[.tweak]]]")
+              return version
+
+          current = os.environ["GITHUB_SHA"]
+          before = os.environ.get("BEFORE_SHA", "")
+          if os.environ["GITHUB_EVENT_NAME"] == "workflow_dispatch":
+              parent = git("rev-parse", "--verify", f"{current}^", check=False)
+              before = parent.stdout.strip() if parent.returncode == 0 else ""
+
+          previous_version = None
+          if before and set(before) != {"0"}:
+              if git("cat-file", "-e", f"{before}^{{commit}}", check=False).returncode != 0:
+                  git("fetch", "--no-tags", "origin", before)
+              if git("cat-file", "-e", f"{before}:CMakeLists.txt", check=False).returncode == 0:
+                  try:
+                      previous_version = version_at(before)
+                  except ValueError as error:
+                      print(f"Previous commit has no usable VERSION ({error}); using it as the baseline")
+
+          version = version_at(current)
+          tag = f"v{version}"
+          git("check-ref-format", f"refs/tags/{tag}")
+          changed = previous_version is not None and previous_version != version
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
+              output.write(f"version={version}\ntag={tag}\nchanged={str(changed).lower()}\n")
+          print(f"Project version: {previous_version or '(initial baseline)'} -> {version}; changed={changed}")
+
+      - name: Check remote tag
+        id: remote_tag
+        if: steps.version.outputs.changed == 'true'
+        env:
+          VERSION_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          ref="refs/tags/$VERSION_TAG"
+          remote_tags=$(git ls-remote --tags origin "$ref" "$ref^{}")
+          tag_sha=$(awk -v ref="$ref" '$2 == ref { print $1 }' <<< "$remote_tags")
+          peeled_sha=$(awk -v ref="$ref^{}" '$2 == ref { print $1 }' <<< "$remote_tags")
+          if [ -n "$tag_sha" ]; then
+            target=${peeled_sha:-$tag_sha}
+            if [ "$target" != "$GITHUB_SHA" ]; then
+              echo "::error::Tag $VERSION_TAG already belongs to $target; choose a new project VERSION"
+              exit 1
+            fi
+            echo "Tag $VERSION_TAG already points to this commit; restarting Linux CI"
+            echo 'exists=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'exists=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create and push tag
+        if: steps.version.outputs.changed == 'true' && steps.remote_tag.outputs.exists == 'false'
+        env:
+          PROJECT_VERSION: ${{ steps.version.outputs.version }}
+          VERSION_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git -c 'user.name=github-actions[bot]' \
+              -c 'user.email=41898282+github-actions[bot]@users.noreply.github.com' \
+              tag --annotate --no-sign "$VERSION_TAG" \
+              --message "assistantbot $PROJECT_VERSION" "$GITHUB_SHA"
+          git push origin "refs/tags/$VERSION_TAG"
+
+      - name: Start Linux CI for the version tag
+        if: steps.version.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION_TAG: ${{ steps.version.outputs.tag }}
+        # Dispatch explicitly because tag pushes made with GITHUB_TOKEN do not trigger push workflows.
+        run: gh workflow run linux-ci.yml --repo "$GITHUB_REPOSITORY" --ref "$VERSION_TAG"

@@ -1,0 +1,201 @@
+name: Linux CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CMAKE_VERSION: '4.2.3'
+  CMAKE_SHA256: '5bb505d5e0cca0480a330f7f27ccf52c2b8b5214c5bba97df08899f5ef650c23'
+  LLVM_VERSION: '21'
+  LLVM_KEY_FINGERPRINT: '6084F3CF814B57C1CF12EFD515CF4D18AF4F7421'
+  # vcpkg checkout with drogon 1.9.13 (port-version 2), the version the app and its plugin libraries are verified against.
+  VCPKG_COMMIT: '67972e92edd181d433927b42d8ab4bfa52ac164a'
+  NODE_VERSION: '24'
+
+jobs:
+  test:
+    name: Linux x64 ${{ matrix.profile }} build and test
+    if: ${{ !github.event.deleted }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [debug, release]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Install CMake
+        run: |
+          cmake_name="cmake-$CMAKE_VERSION-linux-x86_64"
+          cmake_archive="$RUNNER_TEMP/$cmake_name.tar.gz"
+          curl --fail --location --retry 3 \
+            "https://github.com/Kitware/CMake/releases/download/v$CMAKE_VERSION/$cmake_name.tar.gz" \
+            --output "$cmake_archive"
+          printf '%s  %s\n' "$CMAKE_SHA256" "$cmake_archive" | sha256sum --check
+          tar -xzf "$cmake_archive" -C "$RUNNER_TEMP"
+          printf '%s\n' "$RUNNER_TEMP/$cmake_name/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/$cmake_name/bin/cmake" --version
+
+      - name: Install LLVM, Ninja, and ccache
+        run: |
+          key="$RUNNER_TEMP/llvm-snapshot.gpg.key"
+          curl --fail --location --retry 3 https://apt.llvm.org/llvm-snapshot.gpg.key --output "$key"
+          fingerprint=$(gpg --show-keys --with-colons "$key" | awk -F: '/^fpr/ { print $10; exit }')
+          if [ "$fingerprint" != "$LLVM_KEY_FINGERPRINT" ]; then
+            echo "::error::apt.llvm.org key fingerprint is $fingerprint, expected $LLVM_KEY_FINGERPRINT"
+            exit 1
+          fi
+          gpg --dearmor < "$key" | sudo tee /usr/share/keyrings/apt.llvm.org.gpg > /dev/null
+          printf 'deb [signed-by=/usr/share/keyrings/apt.llvm.org.gpg] http://apt.llvm.org/noble/ llvm-toolchain-noble-%s main\n' \
+            "$LLVM_VERSION" | sudo tee /etc/apt/sources.list.d/apt.llvm.org.list
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            "clang-$LLVM_VERSION" "clang-format-$LLVM_VERSION" ninja-build ccache
+          # The presets name plain clang++; this directory also holds clang-format.
+          printf '%s\n' "/usr/lib/llvm-$LLVM_VERSION/bin" >> "$GITHUB_PATH"
+          "/usr/lib/llvm-$LLVM_VERSION/bin/clang++" --version
+          "/usr/lib/llvm-$LLVM_VERSION/bin/clang-format" --version
+          ninja --version
+          ccache --version | head -n 1
+
+      - name: Check formatting
+        if: matrix.profile == 'debug'
+        run: git ls-files -z '*.cpp' '*.hpp' | xargs -0 clang-format --dry-run -Werror
+
+      - name: Compute vcpkg cache key
+        id: vcpkg-key
+        # vcpkg's ABI hashes cover the compiler and CMake that build the ports.
+        run: |
+          printf 'key=vcpkg-%s-x64-linux-%s-gcc%s-cmake%s-drogon-sqlite3\n' \
+            "$ImageOS" "$VCPKG_COMMIT" "$(gcc -dumpfullversion)" "$CMAKE_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Restore vcpkg binary cache
+        id: vcpkg-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/vcpkg-binary-cache
+          key: ${{ steps.vcpkg-key.outputs.key }}
+
+      - name: Install vcpkg and drogon with SQLite
+        env:
+          VCPKG_DISABLE_METRICS: '1'
+        run: |
+          vcpkg_root="$RUNNER_TEMP/vcpkg"
+          git init --quiet "$vcpkg_root"
+          git -C "$vcpkg_root" fetch --quiet --depth 1 https://github.com/microsoft/vcpkg.git "$VCPKG_COMMIT"
+          git -C "$vcpkg_root" checkout --quiet FETCH_HEAD
+          "$vcpkg_root/bootstrap-vcpkg.sh" -disableMetrics
+          mkdir -p "$RUNNER_TEMP/vcpkg-binary-cache"
+          export VCPKG_BINARY_SOURCES="clear;files,$RUNNER_TEMP/vcpkg-binary-cache,readwrite"
+          "$vcpkg_root/vcpkg" install 'drogon[sqlite3]'
+          printf 'VCPKG_ROOT=%s\n' "$vcpkg_root" >> "$GITHUB_ENV"
+
+      - name: Save vcpkg binary cache
+        if: steps.vcpkg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/vcpkg-binary-cache
+          key: ${{ steps.vcpkg-key.outputs.key }}
+
+      - name: Show vcpkg build logs
+        if: failure()
+        run: |
+          find "$RUNNER_TEMP/vcpkg/buildtrees" -name '*.log' -newer "$RUNNER_TEMP/vcpkg/vcpkg" -print0 2>/dev/null |
+            xargs -0 --no-run-if-empty tail -n 40
+
+      # This holds CPM itself and the clones of the pinned library tags. The key covers
+      # CMakeLists.txt, where the pins live, so a new pin starts a new cache.
+      - name: Restore CPM source cache
+        id: cpm-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/cpm-source-cache
+          key: cpm-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
+
+      # CPM clones the drogon-openai and drogon-onebot tags pinned in CMakeLists.txt, unless the cache
+      # already holds them.
+      - name: Configure
+        env:
+          CPM_SOURCE_CACHE: ${{ runner.temp }}/cpm-source-cache
+        run: cmake --preset "linux-${{ matrix.profile }}"
+
+      - name: Save CPM source cache
+        if: steps.cpm-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/cpm-source-cache
+          key: ${{ steps.cpm-cache.outputs.cache-primary-key }}
+
+      - name: Verify tag matches project VERSION
+        if: github.ref_type == 'tag'
+        run: |
+          version=$(sed -n 's/^CMAKE_PROJECT_VERSION:STATIC=//p' "build/linux-${{ matrix.profile }}/CMakeCache.txt")
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME must match project VERSION v$version"
+            exit 1
+          fi
+          echo "Verified $GITHUB_REF_NAME matches project VERSION."
+
+      - name: Build
+        run: cmake --build --preset "linux-${{ matrix.profile }}"
+
+      - name: Test
+        run: ctest --preset "linux-${{ matrix.profile }}"
+
+  # Only assistantbot has this job: the libraries have no frontend.
+  frontend:
+    name: Frontend check and build
+    if: ${{ !github.event.deleted }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      # Installs the pnpm version named by packageManager in frontend/package.json.
+      - name: Install pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: frontend/package.json
+
+      - name: Install Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check, lint, and check formatting
+        run: pnpm check
+
+      # pnpm check has already type-checked, so only bundle.
+      - name: Build
+        run: pnpm build-only
