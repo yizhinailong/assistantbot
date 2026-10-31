@@ -49,6 +49,10 @@ namespace storage {
                 {
                     "ALTER TABLE model_usage ADD COLUMN cached_tokens INTEGER",
                 },
+                // 5: editable agent documents use statement-level optimistic concurrency.
+                {
+                    "CREATE TABLE feature_records (kind TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision > 0), updated_at INTEGER NOT NULL, PRIMARY KEY (kind, key)) STRICT",
+                },
             };
             return list;
         }
