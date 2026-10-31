@@ -43,7 +43,10 @@ namespace controllers {
      * @param section Known feature section name.
      * @return Section with defaults and its revision, or an HTTP error.
      */
-    auto FeaturesController::Section(drogon::HttpRequestPtr req, std::string section) const -> drogon::Task<drogon::HttpResponsePtr> {
+    auto FeaturesController::Section(
+        drogon::HttpRequestPtr req,
+        std::string section
+    ) const -> drogon::Task<drogon::HttpResponsePtr> {
         try {
             auto const settings{ drogon::app().getPlugin<AssistantBot>()->Features() };
             if (req->method() == drogon::Put) {
@@ -74,7 +77,9 @@ namespace controllers {
      * @param req Authenticated request.
      * @return Groups, their configuration, and the current revision.
      */
-    auto FeaturesController::Groups(drogon::HttpRequestPtr) const -> drogon::Task<drogon::HttpResponsePtr> {
+    auto FeaturesController::Groups(
+        drogon::HttpRequestPtr
+    ) const -> drogon::Task<drogon::HttpResponsePtr> {
         auto const groups{ co_await admin::traced_onebot().GetGroupList({ .timeout = 5.0 }) };
         if (!groups) {
             co_return admin::json_error(groups.error().message, drogon::k502BadGateway);
@@ -109,7 +114,10 @@ namespace controllers {
      * @param qq Positive group QQ number.
      * @return Saved groups section or an HTTP error.
      */
-    auto FeaturesController::Group(drogon::HttpRequestPtr req, std::string qq) const -> drogon::Task<drogon::HttpResponsePtr> {
+    auto FeaturesController::Group(
+        drogon::HttpRequestPtr req,
+        std::string qq
+    ) const -> drogon::Task<drogon::HttpResponsePtr> {
         try {
             auto const id{ std::to_string(workflow::parse_qq(qq)) };
             auto const body{ req->getJsonObject() };

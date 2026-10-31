@@ -25,7 +25,10 @@ namespace controllers {
          * @param section Known feature section name.
          * @return Section with defaults and its revision, or an HTTP error.
          */
-        auto Section(drogon::HttpRequestPtr req, std::string section) const -> drogon::Task<drogon::HttpResponsePtr>;
+        auto Section(
+            drogon::HttpRequestPtr req,
+            std::string section
+        ) const -> drogon::Task<drogon::HttpResponsePtr>;
 
         /**
          * @brief Merge typed OneBot group membership with saved opt-in settings.
@@ -40,6 +43,9 @@ namespace controllers {
          * @param qq Positive group QQ number.
          * @return Saved groups section or an HTTP error.
          */
-        auto Group(drogon::HttpRequestPtr req, std::string qq) const -> drogon::Task<drogon::HttpResponsePtr>;
+        auto Group(
+            drogon::HttpRequestPtr req,
+            std::string qq
+        ) const -> drogon::Task<drogon::HttpResponsePtr>;
     };
 } // namespace controllers

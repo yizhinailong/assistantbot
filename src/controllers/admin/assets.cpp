@@ -16,7 +16,9 @@ namespace controllers {
      * @param req Authenticated request.
      * @return Typed favourite list or action result.
      */
-    auto AssetsController::Stickers(drogon::HttpRequestPtr req) const -> drogon::Task<drogon::HttpResponsePtr> {
+    auto AssetsController::Stickers(
+        drogon::HttpRequestPtr req
+    ) const -> drogon::Task<drogon::HttpResponsePtr> {
         try {
             auto api{ admin::traced_onebot() };
             if (req->method() == drogon::Post) {
@@ -58,7 +60,10 @@ namespace controllers {
      * @param id NapCat resource identifier.
      * @return Action result or HTTP error.
      */
-    auto AssetsController::Sticker(drogon::HttpRequestPtr req, std::string id) const -> drogon::Task<drogon::HttpResponsePtr> {
+    auto AssetsController::Sticker(
+        drogon::HttpRequestPtr req,
+        std::string id
+    ) const -> drogon::Task<drogon::HttpResponsePtr> {
         try {
             if (id.empty() || id.size() > 1024) {
                 throw std::invalid_argument{ "invalid resource identifier" };
@@ -91,7 +96,9 @@ namespace controllers {
      * @param req Authenticated request.
      * @return Persisted reference document, or an empty reference.
      */
-    auto AssetsController::Character(drogon::HttpRequestPtr req) const -> drogon::Task<drogon::HttpResponsePtr> {
+    auto AssetsController::Character(
+        drogon::HttpRequestPtr req
+    ) const -> drogon::Task<drogon::HttpResponsePtr> {
         try {
             auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
             if (req->method() == drogon::Post) {

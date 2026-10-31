@@ -33,7 +33,11 @@ namespace workflow {
      * @param session Conversation key.
      * @return Resolved client without forwarding a primary key to a custom endpoint.
      */
-    auto ModelRoles::client(Json::Value const& config, std::string const& role, std::int64_t session) const -> drogon_openai::OpenAI {
+    auto ModelRoles::client(
+        Json::Value const& config,
+        std::string const& role,
+        std::int64_t session
+    ) const -> drogon_openai::OpenAI {
         drogon_openai::OpenAIOptions options{};
         if (config.get("enabled", false).asBool()) {
             auto const endpoint{ config["base_url"].asString() };
@@ -69,7 +73,12 @@ namespace workflow {
      * @param params Owned conversation and request parameters.
      * @return Typed completion result; credential configuration errors throw.
      */
-    auto ModelRoles::Complete(Json::Value snapshot, std::string role, std::int64_t session, drogon_openai::ChatCompletionCreateParams params) const -> drogon::Task<drogon_openai::Result<drogon_openai::ChatCompletion>> {
+    auto ModelRoles::Complete(
+        Json::Value snapshot,
+        std::string role,
+        std::int64_t session,
+        drogon_openai::ChatCompletionCreateParams params
+    ) const -> drogon::Task<drogon_openai::Result<drogon_openai::ChatCompletion>> {
         auto const& config{ snapshot["models"][role] };
         if (role != "executor" && !config["enabled"].asBool()) {
             throw std::invalid_argument{ "model role is disabled: " + role };
@@ -101,7 +110,11 @@ namespace workflow {
      * @param text Input text.
      * @return Validated finite vector, or empty when the role is disabled or fails.
      */
-    auto ModelRoles::Embed(Json::Value snapshot, std::int64_t session, std::string text) const -> drogon::Task<std::vector<double>> {
+    auto ModelRoles::Embed(
+        Json::Value snapshot,
+        std::int64_t session,
+        std::string text
+    ) const -> drogon::Task<std::vector<double>> {
         auto const config{ snapshot["models"]["embedding"] };
         if (!config["enabled"].asBool()) {
             co_return std::vector<double>{};
@@ -134,7 +147,12 @@ namespace workflow {
      * @param reference Optional validated character data URL.
      * @return Image URL or OneBot base64 URI; throws on missing role or failed generation.
      */
-    auto ModelRoles::Image(Json::Value snapshot, std::int64_t session, std::string prompt, std::string reference) const -> drogon::Task<std::string> {
+    auto ModelRoles::Image(
+        Json::Value snapshot,
+        std::int64_t session,
+        std::string prompt,
+        std::string reference
+    ) const -> drogon::Task<std::string> {
         auto const config{ snapshot["models"]["image_generation"] };
         if (!config["enabled"].asBool()) {
             throw std::invalid_argument{ "image_generation role is disabled" };
@@ -174,7 +192,12 @@ namespace workflow {
      * @param usage Provider usage JSON, or null for unavailable totals.
      * @return Task completing after the persistence attempt.
      */
-    auto ModelRoles::record(std::int64_t session, std::string model, bool succeeded, Json::Value usage) const -> drogon::Task<> {
+    auto ModelRoles::record(
+        std::int64_t session,
+        std::string model,
+        bool succeeded,
+        Json::Value usage
+    ) const -> drogon::Task<> {
         storage::UsageRecord record{ .timestamp = common::unix_seconds(), .user_id = session, .model = std::move(model), .succeeded = succeeded };
         auto read{ [&](char const* key) -> std::optional<std::int64_t> {
             return usage.isObject() && usage[key].isInt64() && usage[key].asInt64() >= 0 ? std::optional{ usage[key].asInt64() } : std::nullopt;

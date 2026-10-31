@@ -30,7 +30,10 @@ namespace controllers {
          * @param id NapCat resource identifier.
          * @return Action result or HTTP error.
          */
-        auto Sticker(drogon::HttpRequestPtr req, std::string id) const -> drogon::Task<drogon::HttpResponsePtr>;
+        auto Sticker(
+            drogon::HttpRequestPtr req,
+            std::string id
+        ) const -> drogon::Task<drogon::HttpResponsePtr>;
         /**
          * @brief Read, atomically replace, or delete the validated character image.
          * @param req Authenticated request.

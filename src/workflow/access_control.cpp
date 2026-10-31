@@ -182,7 +182,9 @@ namespace workflow {
      * @throws AccessConflict If another write is in flight.
      * @throws drogon::orm::DrogonDbException If saving fails.
      */
-    auto AccessControl::SetMode(AccessMode mode) -> drogon::Task<std::shared_ptr<AccessPolicy const>> {
+    auto AccessControl::SetMode(
+        AccessMode mode
+    ) -> drogon::Task<std::shared_ptr<AccessPolicy const>> {
         return update([mode](AccessPolicy& policy) { policy.mode = mode; });
     }
 

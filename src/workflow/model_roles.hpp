@@ -35,7 +35,12 @@ namespace workflow {
          * @param params Owned conversation and request parameters.
          * @return Typed completion result; credential configuration errors throw.
          */
-        auto Complete(Json::Value snapshot, std::string role, std::int64_t session, drogon_openai::ChatCompletionCreateParams params) const -> drogon::Task<drogon_openai::Result<drogon_openai::ChatCompletion>>;
+        auto Complete(
+            Json::Value snapshot,
+            std::string role,
+            std::int64_t session,
+            drogon_openai::ChatCompletionCreateParams params
+        ) const -> drogon::Task<drogon_openai::Result<drogon_openai::ChatCompletion>>;
 
         /**
          * @brief Embed text with the configured embedding role, recording token usage.
@@ -44,7 +49,11 @@ namespace workflow {
          * @param text Input text.
          * @return Validated finite vector, or empty when the role is disabled or fails.
          */
-        auto Embed(Json::Value snapshot, std::int64_t session, std::string text) const -> drogon::Task<std::vector<double>>;
+        auto Embed(
+            Json::Value snapshot,
+            std::int64_t session,
+            std::string text
+        ) const -> drogon::Task<std::vector<double>>;
 
         /**
          * @brief Generate an image or edit the configured character reference.
@@ -54,7 +63,12 @@ namespace workflow {
          * @param reference Optional validated character data URL.
          * @return Image URL or OneBot base64 URI; throws on missing role or failed generation.
          */
-        auto Image(Json::Value snapshot, std::int64_t session, std::string prompt, std::string reference = {}) const -> drogon::Task<std::string>;
+        auto Image(
+            Json::Value snapshot,
+            std::int64_t session,
+            std::string prompt,
+            std::string reference = {}
+        ) const -> drogon::Task<std::string>;
 
         /**
          * @brief Identify the configured embedding vector space without including credentials.
@@ -71,7 +85,11 @@ namespace workflow {
          * @param session Conversation key.
          * @return Resolved client without forwarding a primary key to a custom endpoint.
          */
-        auto client(Json::Value const& config, std::string const& role, std::int64_t session) const -> drogon_openai::OpenAI;
+        auto client(
+            Json::Value const& config,
+            std::string const& role,
+            std::int64_t session
+        ) const -> drogon_openai::OpenAI;
 
         /**
          * @brief Append request outcome and optional usage without failing the original operation.
@@ -81,6 +99,11 @@ namespace workflow {
          * @param usage Provider usage JSON, or null for unavailable totals.
          * @return Task completing after the persistence attempt.
          */
-        auto record(std::int64_t session, std::string model, bool succeeded, Json::Value usage) const -> drogon::Task<>;
+        auto record(
+            std::int64_t session,
+            std::string model,
+            bool succeeded,
+            Json::Value usage
+        ) const -> drogon::Task<>;
     };
 } // namespace workflow
