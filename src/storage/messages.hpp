@@ -25,6 +25,8 @@ namespace storage {
         std::string content;      ///< Text or readable media placeholders.
         std::string status;       ///< Received, ignored, sent, or failed.
         std::string error;        ///< Ignore or failure reason; empty on success.
+        std::int64_t sender_id{}; ///< Actual sender QQ, independent of the conversation key.
+        std::int64_t group_id{};  ///< Group QQ; zero for private chat.
     };
 
     /**

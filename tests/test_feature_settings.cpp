@@ -34,7 +34,7 @@ DROGON_TEST(FeatureSettingsKeepSnapshotsAndRejectStaleSaves) {
     models["vision"].removeMember("api_key");
     models["vision"]["base_url"] = "https://secret@example.test/v1";
     CHECK_THROWS_AS(drogon::sync_wait(settings.Update("models", models)), std::invalid_argument);
-    CHECK_THROWS_AS(settings.Describe("_revision"), std::invalid_argument);
+    CHECK_THROWS_AS(static_cast<void>(settings.Describe("_revision")), std::invalid_argument);
     CHECK(settings.Describe("groups")["revision"].asString() == "1");
 }
 

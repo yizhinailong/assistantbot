@@ -13,6 +13,7 @@
 #include "common/time.hpp"
 #include "storage/messages.hpp"
 #include "storage/usage.hpp"
+#include "workflow/access_control.hpp"
 
 namespace workflow {
 
@@ -47,6 +48,24 @@ namespace workflow {
     } // namespace
 
     /**
+     * @brief Map private and group recipients to disjoint context and storage keys.
+     * @param peer Message sender and optional group.
+     * @return Positive friend QQ or negative group QQ.
+     */
+    auto conversation_id(Peer const& peer) -> std::int64_t {
+        return peer.group_id == 0 ? peer.user_id : -peer.group_id;
+    }
+
+    /**
+     * @brief Parse an administrative conversation key without accepting zero or INT64_MIN.
+     * @param value Positive friend QQ or negative group QQ as decimal text.
+     * @return Validated storage key.
+     */
+    auto parse_conversation(std::string const& value) -> std::int64_t {
+        return value.starts_with('-') ? -parse_qq(value.substr(1)) : parse_qq(value);
+    }
+
+    /**
      * @brief Bind the workflow to its settings and clients.
      * @param settings Settings of the bot, shared with whoever updates them.
      * @param onebot Client for the OneBot implementation's HTTP API.
@@ -78,20 +97,20 @@ namespace workflow {
      * @return Task that ends when every reply that this call is responsible for has been sent.
      */
     auto PrivateChat::Chat(Peer peer, std::string text) -> drogon::Task<> {
-        auto const claimed{ m_sessions.Enqueue(peer.user_id, std::move(text), SessionStore::Clock::now()) };
-        notifySession(peer.user_id);
+        auto const claimed{ m_sessions.Enqueue(conversation_id(peer), std::move(text), SessionStore::Clock::now()) };
+        notifySession(conversation_id(peer));
         if (!claimed) {
             co_return;
         }
         try {
-            while (auto prompt{ m_sessions.TakePending(peer.user_id) }) {
+            while (auto prompt{ m_sessions.TakePending(conversation_id(peer)) }) {
                 co_await answer(peer, std::move(*prompt));
             }
-            notifySession(peer.user_id);
+            notifySession(conversation_id(peer));
         } catch (...) {
             // A claim left behind would queue this user's messages forever.
-            m_sessions.Release(peer.user_id);
-            notifySession(peer.user_id);
+            m_sessions.Release(conversation_id(peer));
+            notifySession(conversation_id(peer));
             throw;
         }
     }
@@ -125,7 +144,7 @@ namespace workflow {
      */
     auto PrivateChat::answer(Peer peer, std::string prompt) -> drogon::Task<> {
         auto const config{ m_settings->Current() };
-        auto const history{ m_sessions.History(peer.user_id) };
+        auto const history{ m_sessions.History(conversation_id(peer)) };
         drogon_openai::ChatCompletionCreateParams params{};
         if (!config->system_prompt.empty()) {
             params.messages.push_back({ .role = "system", .content = config->system_prompt });
@@ -133,6 +152,9 @@ namespace workflow {
         for (auto const& turn : history.turns) {
             params.messages.push_back({ .role = "user", .content = turn.user });
             params.messages.push_back({ .role = "assistant", .content = turn.assistant });
+        }
+        if (!peer.additional_prompt.empty()) {
+            params.messages.push_back({ .role = "system", .content = peer.additional_prompt });
         }
         params.messages.push_back({ .role = "user", .content = prompt });
         if (!config->model.empty()) {
@@ -145,7 +167,7 @@ namespace workflow {
         auto reply{ reply_text(completion, peer.user_id) };
         storage::UsageRecord usage{
             .timestamp = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count(),
-            .user_id = peer.user_id,
+            .user_id = conversation_id(peer),
             .model = completion ? completion->model : (config->model.empty() ? m_model : config->model),
             .succeeded = !reply.empty(),
         };
@@ -167,7 +189,7 @@ namespace workflow {
             co_await storage::record_usage(m_database, std::move(usage));
             Json::Value event{ Json::objectValue };
             event["type"] = "usage_updated";
-            event["user_id"] = std::to_string(peer.user_id);
+            event["user_id"] = std::to_string(conversation_id(peer));
             admin::publish_event(std::move(event));
         } catch (std::exception const& error) {
             LOG_ERROR << "Recording model usage failed: " << error.what();
@@ -177,7 +199,7 @@ namespace workflow {
             co_return;
         }
         auto parts{ common::split_reply(reply, config->max_reply_chars) };
-        m_sessions.Record(peer.user_id, history.generation, { .user = std::move(prompt), .assistant = std::move(reply) }, SessionStore::Clock::now());
+        m_sessions.Record(conversation_id(peer), history.generation, { .user = std::move(prompt), .assistant = std::move(reply) }, SessionStore::Clock::now());
         for (auto& part : parts) {
             co_await Send(peer, std::move(part));
         }
@@ -190,10 +212,14 @@ namespace workflow {
      * @return Task that ends when the OneBot implementation has answered.
      */
     auto PrivateChat::Send(Peer peer, std::string text) -> drogon::Task<> {
-        auto const sent{ co_await m_onebot.SendPrivateMsg({
-            .user_id = peer.user_id,
-            .message = { drogon_onebot::MessageSegment::Text(text) },
-        }) };
+        auto const sent{ peer.group_id == 0 ? co_await m_onebot.SendPrivateMsg({
+                                                  .user_id = peer.user_id,
+                                                  .message = { drogon_onebot::MessageSegment::Text(text) },
+                                              }) :
+                                              co_await m_onebot.SendGroupMsg({
+                                                  .group_id = peer.group_id,
+                                                  .message = { drogon_onebot::MessageSegment::Text(text) },
+                                              }) };
         if (!sent) {
             LOG_ERROR << "Sending a message to " << peer.user_id << " failed: " << sent.error().message;
             co_await appendMessage(peer, "outgoing", std::move(text), "failed", sent.error().message);
@@ -216,7 +242,7 @@ namespace workflow {
         std::string ignored_reason
     ) -> drogon::Task<> {
         if (ignored_reason.empty()) {
-            m_sessions.Touch(peer.user_id, peer.nickname, common::unix_seconds());
+            m_sessions.Touch(conversation_id(peer), peer.nickname, common::unix_seconds());
         }
         co_await appendMessage(peer, "incoming", std::move(content), ignored_reason.empty() ? "received" : "ignored", ignored_reason);
     }
@@ -268,16 +294,18 @@ namespace workflow {
         try {
             auto saved{ co_await storage::append_message(m_database, {
                                                                          .timestamp = common::unix_seconds(),
-                                                                         .user_id = peer.user_id,
+                                                                         .user_id = conversation_id(peer),
                                                                          .nickname = std::move(peer.nickname),
                                                                          .direction = std::move(direction),
                                                                          .content = std::move(content),
                                                                          .status = std::move(status),
                                                                          .error = std::move(error),
+                                                                         .sender_id = peer.user_id,
+                                                                         .group_id = peer.group_id,
                                                                      }) };
             Json::Value event{ Json::objectValue };
             event["type"] = "message_created";
-            event["user_id"] = std::to_string(peer.user_id);
+            event["user_id"] = std::to_string(conversation_id(peer));
             event["message"] = std::move(saved);
             admin::publish_event(std::move(event));
         } catch (std::exception const& failure) {

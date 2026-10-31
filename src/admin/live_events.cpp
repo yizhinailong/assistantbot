@@ -22,6 +22,7 @@
 #include "admin/http_helpers.hpp"
 #include "common/time.hpp"
 #include "workflow/access_control.hpp"
+#include "workflow/private_chat.hpp"
 
 namespace admin {
 
@@ -401,7 +402,7 @@ namespace admin {
                 if (body["user_id"].isNull()) {
                     subscriber.user_id.reset();
                 } else if (body["user_id"].isString()) {
-                    subscriber.user_id = std::to_string(workflow::parse_qq(body["user_id"].asString()));
+                    subscriber.user_id = std::to_string(workflow::parse_conversation(body["user_id"].asString()));
                 } else {
                     throw std::invalid_argument{ "user_id must be a decimal string or null" };
                 }

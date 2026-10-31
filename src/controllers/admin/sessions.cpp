@@ -82,7 +82,7 @@ namespace controllers {
             auto const peers{ co_await storage::message_peers(drogon::app().getPlugin<storage::Database>()->Client()) };
             std::map<std::int64_t, Json::Value> by_user{};
             for (auto const& peer : peers) {
-                by_user[workflow::parse_qq(peer["user_id"].asString())] = summary_json(peer, std::nullopt);
+                by_user[workflow::parse_conversation(peer["user_id"].asString())] = summary_json(peer, std::nullopt);
             }
             for (auto const& summary : drogon::app().getPlugin<AssistantBot>()->Chat()->Sessions()) {
                 auto& peer{ by_user[summary.user_id] };
@@ -119,7 +119,7 @@ namespace controllers {
         std::string qq
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
         try {
-            auto body{ co_await session_detail(workflow::parse_qq(qq)) };
+            auto body{ co_await session_detail(workflow::parse_conversation(qq)) };
             if (body.isNull()) {
                 co_return admin::json_error("session not found", drogon::k404NotFound);
             }
@@ -143,7 +143,7 @@ namespace controllers {
         std::string qq
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
         try {
-            auto const id{ workflow::parse_qq(qq) };
+            auto const id{ workflow::parse_conversation(qq) };
             if ((co_await session_detail(id)).isNull()) {
                 co_return admin::json_error("session not found", drogon::k404NotFound);
             }
@@ -168,7 +168,7 @@ namespace controllers {
         std::string qq
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
         try {
-            auto const id{ workflow::parse_qq(qq) };
+            auto const id{ workflow::parse_conversation(qq) };
             auto const limit{ admin::query_integer(req, "limit", 50, 1, 200) };
             std::optional<std::int64_t> before{};
             std::optional<std::int64_t> after{};

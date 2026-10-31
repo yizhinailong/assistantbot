@@ -23,6 +23,8 @@ namespace storage {
             body["id"] = std::to_string(row["id"].as<std::int64_t>());
             body["timestamp"] = Json::Int64{ row["timestamp"].as<std::int64_t>() };
             body["user_id"] = std::to_string(row["user_id"].as<std::int64_t>());
+            body["sender_id"] = std::to_string(row["sender_id"].as<std::int64_t>());
+            body["group_id"] = std::to_string(row["group_id"].as<std::int64_t>());
             for (auto const* key : { "nickname", "direction", "content", "status", "error" }) {
                 body[key] = row[key].as<std::string>();
             }
@@ -42,7 +44,7 @@ namespace storage {
         drogon::orm::DbClientPtr db,
         ChatMessage message
     ) -> drogon::Task<Json::Value> {
-        auto const saved{ co_await query(db, "INSERT INTO chat_messages (timestamp, user_id, nickname, direction, content, status, error) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *", message.timestamp, message.user_id, message.nickname, message.direction, message.content, message.status, message.error) };
+        auto const saved{ co_await query(db, "INSERT INTO chat_messages (timestamp, user_id, nickname, direction, content, status, error, sender_id, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *", message.timestamp, message.user_id, message.nickname, message.direction, message.content, message.status, message.error, message.sender_id, message.group_id) };
         co_return message_json(saved.at(0));
     }
 

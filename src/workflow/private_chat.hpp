@@ -28,10 +28,26 @@ namespace workflow {
      * @brief Friend that a reply goes to, with what the log shows of them.
      */
     struct Peer {
-        std::int64_t self_id{}; ///< QQ number of the bot account.
-        std::int64_t user_id{}; ///< QQ number of the friend.
-        std::string nickname;   ///< Nickname of the friend; may be empty.
+        std::int64_t self_id{};        ///< QQ number of the bot account.
+        std::int64_t user_id{};        ///< QQ number of the friend.
+        std::string nickname;          ///< Nickname of the friend; may be empty.
+        std::int64_t group_id{};       ///< Group recipient; zero denotes a private conversation.
+        std::string additional_prompt; ///< Per-group instructions copied when an event is accepted.
     };
+
+    /**
+     * @brief Map private and group recipients to disjoint context and storage keys.
+     * @param peer Message sender and optional group.
+     * @return Positive friend QQ or negative group QQ.
+     */
+    auto conversation_id(Peer const& peer) -> std::int64_t;
+
+    /**
+     * @brief Parse an administrative conversation key without accepting zero or INT64_MIN.
+     * @param value Positive friend QQ or negative group QQ as decimal text.
+     * @return Validated storage key.
+     */
+    auto parse_conversation(std::string const& value) -> std::int64_t;
 
     /**
      * @brief Answer the private messages of friends with the model.

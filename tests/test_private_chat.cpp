@@ -33,6 +33,7 @@
 #include "storage/usage.hpp"
 #include "support.hpp"
 #include "workflow/bot_config.hpp"
+#include "workflow/feature_settings.hpp"
 #include "workflow/private_chat.hpp"
 
 namespace {
@@ -198,6 +199,20 @@ namespace {
             },
             { drogon::Post }
         );
+        drogon::app().registerHandler("/napcat/send_group_msg", [](drogon::HttpRequestPtr req) -> drogon::Task<drogon::HttpResponsePtr> {
+            auto const body{ req->getJsonObject() };
+            std::string text{};
+            for (auto const& segment : (*body)["message"]) {
+                text += segment["data"]["text"].asString();
+            }
+            g_sent.Push(-(*body)["group_id"].asInt64(), std::move(text));
+            Json::Value reply{};
+            reply["status"] = "ok";
+            reply["retcode"] = 0;
+            reply["data"]["message_id"] = 2;
+            co_return drogon::HttpResponse::newHttpJsonResponse(reply);
+        },
+                                      { drogon::Post });
         drogon::app().registerHandler(
             "/v1/chat/completions",
             [](drogon::HttpRequestPtr req) -> drogon::Task<drogon::HttpResponsePtr> {
@@ -707,6 +722,50 @@ DROGON_TEST(RemoteResetClearsPendingAndRejectsTheInflightContext) {
     CHECK(describe(*next) == std::string{ "system: " } + SYSTEM_PROMPT + " | user: after remote reset");
     auto const messages{ wait_messages(20106, 5)["messages"] };
     CHECK(messages[1]["content"] == "discard queued");
+}
+
+DROGON_TEST(GroupsRequireOptInAndHonorCardsPromptsCommandsAndSeparateContexts) {
+    auto const features{ drogon::app().getPlugin<controllers::AssistantBot>()->Features() };
+    Json::Value groups{ Json::objectValue };
+    groups["40002"]["enabled"] = true;
+    groups["40002"]["additional_prompt"] = "Group instructions";
+    drogon::sync_wait(features->Update("groups", groups));
+    Json::Value admins{ Json::arrayValue };
+    admins.append("20201");
+    drogon::sync_wait(features->Update("admins", admins));
+    auto event{ message_event(20202, text_message("unaddressed"), "group", "normal") };
+    event["group_id"] = 40002;
+    CHECK(test_support::post_event(event)->statusCode() == drogon::k204NoContent);
+    CHECK(!g_sent.Pop(-40002, NO_REPLY_WAIT));
+    Json::Value mention{};
+    mention["type"] = "at";
+    mention["data"]["qq"] = std::to_string(SELF_ID);
+    event["message"] = text_message("group hello");
+    event["message"].append(mention);
+    event["sender"]["card"] = "Group card";
+    CHECK(test_support::post_event(event)->statusCode() == drogon::k204NoContent);
+    CHECK(g_sent.Pop(-40002, REPLY_WAIT) == "echo: [Group card QQ:20202] group hello");
+    auto const request{ g_requests.Find("[Group card QQ:20202] group hello") };
+    REQUIRE(request.has_value());
+    CHECK(describe(*request).contains("system: Group instructions"));
+    CHECK(say(40002, "private same number") == drogon::k204NoContent);
+    CHECK(g_sent.Pop(40002, REPLY_WAIT) == "echo: private same number");
+    CHECK(describe(*g_requests.Find("private same number")) == std::string{ "system: " } + SYSTEM_PROMPT + " | user: private same number");
+    event["message"] = text_message("/reset");
+    CHECK(test_support::post_event(event)->statusCode() == drogon::k204NoContent);
+    CHECK(!g_sent.Pop(-40002, NO_REPLY_WAIT));
+    event["user_id"] = 20201;
+    event["sender"]["user_id"] = 20201;
+    CHECK(test_support::post_event(event)->statusCode() == drogon::k204NoContent);
+    CHECK(g_sent.Pop(-40002, REPLY_WAIT) == controllers::RESET_REPLY);
+    auto const records{ wait_messages(-40002, 6)["messages"] };
+    REQUIRE(!records.empty());
+    CHECK(records[0]["error"] == "not_addressed");
+    CHECK(records[1]["sender_id"] == "20202");
+    CHECK(records[1]["group_id"] == "40002");
+    CHECK(records[3]["error"] == "administrator_required");
+    drogon::sync_wait(features->Update("groups", Json::Value{ Json::objectValue }));
+    drogon::sync_wait(features->Update("admins", Json::Value{ Json::arrayValue }));
 }
 
 auto main(int argc, char** argv) -> int {

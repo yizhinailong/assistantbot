@@ -17,6 +17,7 @@
 #include "storage/database.hpp"
 #include "workflow/access_control.hpp"
 #include "workflow/bot_settings.hpp"
+#include "workflow/feature_settings.hpp"
 #include "workflow/private_chat.hpp"
 
 namespace controllers {
@@ -39,19 +40,52 @@ namespace controllers {
             std::shared_ptr<workflow::PrivateChat> chat,
             std::shared_ptr<std::atomic_bool> paused,
             std::shared_ptr<workflow::AccessControl> access,
+            std::shared_ptr<workflow::FeatureSettings> features,
             drogon_onebot::MessageEvent event
         ) -> drogon::Task<> {
             LOG_INFO << common::describe_received(event);
-            if (event.message_type != "private" || event.sub_type != "friend") {
+            bool const group_message{ event.message_type == "group" && event.group_id && *event.group_id > 0 };
+            if (!group_message && (event.message_type != "private" || event.sub_type != "friend")) {
                 co_return;
             }
-            workflow::Peer const peer{ .self_id = event.self_id, .user_id = event.user_id, .nickname = std::move(event.sender.nickname) };
+            auto const settings{ features->Current() };
+            auto group{ group_message ? (*settings)["groups"][std::to_string(*event.group_id)] : Json::Value{} };
+            bool administrator{};
+            for (auto const& id : (*settings)["admins"]) {
+                administrator = administrator || id.asString() == std::to_string(event.user_id);
+            }
+            workflow::Peer const peer{
+                .self_id = event.self_id,
+                .user_id = event.user_id,
+                .nickname = event.sender.nickname,
+                .group_id = group_message ? *event.group_id : 0,
+                .additional_prompt = group.get("additional_prompt", "").asString(),
+            };
             auto const policy{ access->Current() };
+            auto text{ common::extract_text(event.message) };
+            bool addressed{};
+            for (auto const& segment : event.message) {
+                if (segment.type == "at" && segment.data["qq"].asString() == std::to_string(event.self_id)) {
+                    addressed = true;
+                }
+            }
             std::string ignored_reason{};
             if (paused->load(std::memory_order_relaxed)) {
                 ignored_reason = "paused";
-            } else if (!policy->Allows(event.user_id)) {
-                ignored_reason = policy->blacklist.contains(event.user_id) ? "blacklist" : "outside_allowlist";
+            } else if (policy->blacklist.contains(event.user_id)) {
+                ignored_reason = "blacklist";
+            } else if (!group_message && !policy->Allows(event.user_id)) {
+                ignored_reason = "outside_allowlist";
+            } else if (group_message && text.starts_with('/')) {
+                if (!administrator) {
+                    ignored_reason = "administrator_required";
+                } else if (!group.get("commands_enabled", true).asBool()) {
+                    ignored_reason = "group_commands_disabled";
+                }
+            } else if (group_message && !group.get("enabled", false).asBool()) {
+                ignored_reason = "group_disabled";
+            } else if (group_message && !group.get("auto_reply", false).asBool() && !addressed) {
+                ignored_reason = "not_addressed";
             }
             std::string content{};
             for (auto const& segment : event.message) {
@@ -61,7 +95,34 @@ namespace controllers {
             if (!ignored_reason.empty()) {
                 co_return;
             }
-            auto text{ common::extract_text(event.message) };
+            if (group_message && text.starts_with('/')) {
+                bool changed{};
+                if (text == "/on" || text == "/off") {
+                    group["enabled"] = text == "/on";
+                    changed = true;
+                } else if (text == "/auto on" || text == "/auto off") {
+                    group["auto_reply"] = text == "/auto on";
+                    changed = true;
+                } else if (text.starts_with("/prompt ")) {
+                    group["additional_prompt"] = text.substr(8);
+                    changed = true;
+                }
+                if (changed) {
+                    auto groups{ (*settings)["groups"] };
+                    groups[std::to_string(peer.group_id)] = std::move(group);
+                    std::string result{ "群设置已保存。" };
+                    try {
+                        co_await features->Update("groups", std::move(groups), (*settings)["_revision"].asUInt64());
+                    } catch (std::exception const& error) {
+                        result = error.what();
+                    }
+                    co_await chat->Send(peer, std::move(result));
+                    co_return;
+                }
+                if (!group.get("enabled", false).asBool()) {
+                    co_return;
+                }
+            }
             if (text.empty()) {
                 co_await chat->Send(peer, TEXT_ONLY_REPLY);
                 co_return;
@@ -71,9 +132,13 @@ namespace controllers {
                 co_return;
             }
             if (text == RESET_COMMAND) {
-                chat->Reset(peer.user_id);
+                chat->Reset(workflow::conversation_id(peer));
                 co_await chat->Send(peer, RESET_REPLY);
                 co_return;
+            }
+            if (group_message && group.get("include_card", true).asBool()) {
+                auto const name{ event.sender.card.empty() ? event.sender.nickname : event.sender.card };
+                text = "[" + name + " QQ:" + std::to_string(peer.user_id) + "] " + text;
             }
             co_await chat->Chat(peer, std::move(text));
         }
@@ -101,12 +166,13 @@ namespace controllers {
         }
 
         // Drogon starts the plugins before any event loop runs, so reading the database blocks safely.
+        m_features = std::make_shared<workflow::FeatureSettings>(database->Client());
         m_settings = std::make_shared<workflow::BotSettings>(config, database->Client());
         m_chat = std::make_shared<workflow::PrivateChat>(m_settings, admin::traced_onebot(), admin::traced_model(openai->NewOpenAIClient()), database->Client(), openai->Config().model);
         m_paused = std::make_shared<std::atomic_bool>(false);
         m_access = std::make_shared<workflow::AccessControl>(database->Client());
-        onebot->OnMessage([chat = m_chat, paused = m_paused, access = m_access](drogon_onebot::MessageEvent event) -> drogon::Task<> {
-            co_await handle_message(chat, paused, access, std::move(event));
+        onebot->OnMessage([chat = m_chat, paused = m_paused, access = m_access, features = m_features](drogon_onebot::MessageEvent event) -> drogon::Task<> {
+            co_await handle_message(chat, paused, access, features, std::move(event));
         });
     }
 
@@ -151,6 +217,7 @@ namespace controllers {
      * Handlers that are still running keep their own reference until they end.
      */
     auto AssistantBot::shutdown() -> void {
+        m_features.reset();
         m_settings.reset();
         m_access.reset();
         m_paused.reset();
@@ -171,6 +238,14 @@ namespace controllers {
      */
     auto AssistantBot::Chat() const -> std::shared_ptr<workflow::PrivateChat> {
         return m_chat;
+    }
+
+    /**
+     * @brief Get the immutable optional-feature settings manager.
+     * @return Settings manager during the plugin lifetime.
+     */
+    auto AssistantBot::Features() const -> std::shared_ptr<workflow::FeatureSettings> {
+        return m_features;
     }
 
 } // namespace controllers

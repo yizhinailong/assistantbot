@@ -53,6 +53,12 @@ namespace storage {
                 {
                     "CREATE TABLE feature_records (kind TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision > 0), updated_at INTEGER NOT NULL, PRIMARY KEY (kind, key)) STRICT",
                 },
+                // 6: retain group recipients and actual senders while keeping context keys disjoint.
+                {
+                    "ALTER TABLE chat_messages ADD COLUMN sender_id INTEGER NOT NULL DEFAULT 0",
+                    "ALTER TABLE chat_messages ADD COLUMN group_id INTEGER NOT NULL DEFAULT 0",
+                    "UPDATE chat_messages SET sender_id = user_id",
+                },
             };
             return list;
         }
