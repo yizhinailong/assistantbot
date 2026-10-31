@@ -33,6 +33,11 @@ end
     CHECK(result["private"].asBool());
     CHECK(result["escaped"].asBool());
     CHECK(drogon::sync_wait(tools::run_lua("function run() return _G.previous == nil end", {}, {})).asBool());
+    auto decoded{ drogon::sync_wait(tools::run_lua("function run() return json.decode('[null,false,1]') end", {}, {})) };
+    REQUIRE(decoded.isArray());
+    CHECK(decoded.size() == 3);
+    CHECK(decoded[0].isNull());
+    CHECK(decoded[1] == false);
 }
 
 DROGON_TEST(LuaBudgetsRejectUnboundedWorkAndAliasedJson) {
