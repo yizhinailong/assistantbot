@@ -1,4 +1,5 @@
 import { request } from './client'
+import type { FeatureRecord } from './features'
 export interface ScheduledTask {
   id: string
   session_id: string
@@ -22,4 +23,52 @@ export function createTask(
 }
 export function cancelTask(id: string): Promise<unknown> {
   return request(`/api/admin/tasks/${encodeURIComponent(id)}/cancel`, { method: 'POST' })
+}
+export interface ToolDefinition {
+  name: string
+  description: string
+  parameters: Record<string, unknown>
+  group_only: boolean
+}
+export interface ToolConfig {
+  enabled: boolean
+  builtin: Record<string, { enabled: boolean; description: string }>
+}
+export interface LuaTool {
+  enabled: boolean
+  description: string
+  parameters: Record<string, unknown>
+  script: string
+}
+export function getBuiltins(): Promise<{ tools: ToolDefinition[] }> {
+  return request('/api/admin/tools/builtin')
+}
+export function getLuaTools(): Promise<{ tools: FeatureRecord<LuaTool>[] }> {
+  return request('/api/admin/tools/lua')
+}
+export function saveLuaTool(
+  name: string,
+  value: LuaTool,
+  revision: string,
+): Promise<FeatureRecord<LuaTool>> {
+  return request(`/api/admin/tools/lua/${encodeURIComponent(name)}`, {
+    method: 'PUT',
+    body: { value, revision },
+  })
+}
+export function deleteLuaTool(name: string, revision: string): Promise<unknown> {
+  return request(
+    `/api/admin/tools/lua/${encodeURIComponent(name)}?${new URLSearchParams({ revision })}`,
+    { method: 'DELETE' },
+  )
+}
+export function testLuaTool(
+  name: string,
+  value: LuaTool,
+  args: Record<string, unknown>,
+): Promise<unknown> {
+  return request('/api/admin/tools/lua-test', {
+    method: 'POST',
+    body: { name, value, arguments: args },
+  })
 }

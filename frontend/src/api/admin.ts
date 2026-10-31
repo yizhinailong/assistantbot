@@ -261,7 +261,7 @@ export function setLogLevel(level: LogLevel): Promise<{ level: LogLevel }> {
 export interface HttpTrace {
   id: string
   timestamp: number
-  source: 'model' | 'onebot' | 'mcp'
+  source: 'model' | 'onebot' | 'mcp' | 'tool'
   role?: string
   session?: string
   method: string

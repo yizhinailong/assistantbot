@@ -99,6 +99,7 @@ onUnmounted(() => {
           <option value="model">模型</option>
           <option value="onebot">OneBot</option>
           <option value="mcp">MCP</option>
+          <option value="tool">Lua HTTP</option>
         </select>
       </label>
       <label><input v-model="paused" type="checkbox" /> 暂停刷新</label>
