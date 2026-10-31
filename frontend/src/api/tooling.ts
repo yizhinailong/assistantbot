@@ -72,3 +72,18 @@ export function testLuaTool(
     body: { name, value, arguments: args },
   })
 }
+export interface McpServer {
+  name: string
+  description: string
+  url: string
+  token_env: string
+  enabled: boolean
+  timeout: number
+  protocol_version: string
+}
+export interface McpConfig {
+  servers: McpServer[]
+}
+export function probeMcp(name: string): Promise<{ tools: unknown[] }> {
+  return request(`/api/admin/mcp/${encodeURIComponent(name)}/test`, { method: 'POST' })
+}

@@ -13,6 +13,7 @@ import ModelsView from '@/views/ModelsView.vue'
 import MemoryView from '@/views/MemoryView.vue'
 import TasksView from '@/views/TasksView.vue'
 import ToolsView from '@/views/ToolsView.vue'
+import McpView from '@/views/McpView.vue'
 import AssetsView from '@/views/AssetsView.vue'
 import GroupsView from '@/views/GroupsView.vue'
 
@@ -32,6 +33,7 @@ const router = createRouter({
     { path: '/memory', name: 'memory', component: MemoryView },
     { path: '/tasks', name: 'tasks', component: TasksView },
     { path: '/tools', name: 'tools', component: ToolsView },
+    { path: '/mcp', name: 'mcp', component: McpView },
     { path: '/assets', name: 'assets', component: AssetsView },
     { path: '/groups', name: 'groups', component: GroupsView },
     { path: '/http-traces', name: 'http-traces', component: HttpTracesView },

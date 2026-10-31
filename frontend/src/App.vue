@@ -17,6 +17,7 @@ const pages = [
   { to: '/memory', label: '人物与记忆' },
   { to: '/tasks', label: '定时任务' },
   { to: '/tools', label: '工具配置' },
+  { to: '/mcp', label: 'MCP 服务' },
   { to: '/assets', label: '表情与角色图' },
   { to: '/groups', label: '群聊' },
   { to: '/access', label: '访问控制' },
