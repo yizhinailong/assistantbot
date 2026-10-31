@@ -53,6 +53,27 @@ docker compose up --detach --no-build
 
 命令读取 shell 中已有的代理环境变量。模型密钥和 bot 令牌仍只在运行时传入，不作为构建参数。
 
+## 使用 Docker Hub 镜像
+
+已发布的 `linux/amd64` 镜像位于 [yizhinailong/assistantbot](https://hub.docker.com/r/yizhinailong/assistantbot)。`0.1.0` 等标签使用 `CMakeLists.txt` 中 `project()` 的 `VERSION`，每次发布成功时更新 `latest`。
+
+填写四个运行时凭据后，在 `.env` 中选择镜像：
+
+```dotenv
+ASSISTANTBOT_IMAGE=yizhinailong/assistantbot:0.1.0
+```
+
+拉取并启动，无需在本地构建：
+
+```sh
+docker compose pull assistantbot
+docker compose up --detach --no-build
+```
+
+更新时，选择下一个已发布版本，再执行这两条命令；也可以使用 `latest`。不设置 `ASSISTANTBOT_IMAGE` 时，默认仍使用本地构建的 `assistantbot:local`。两种方式使用相同的配置和持久化数据卷。
+
+修改 `project(VERSION ...)` 并推送到 `master` 后，会创建版本标签；该标签上的 Linux CI 在原生测试和前端检查通过后发布镜像。凭据配置和失败重试方法见 [CI 使用说明](ci.md)。
+
 ## 配置与数据持久化
 
 Compose 将 `config.json` 只读挂载到 `/app/config.json`，镜像本身也包含一份仓库配置，供不用 Compose 时使用。需要单独保存本地配置时：

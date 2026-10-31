@@ -8,11 +8,11 @@
 
 | 工作流 | 作用 |
 | --- | --- |
-| [linux-ci.yml](../../.github/workflows/linux-ci.yml)（Linux CI） | 在分支推送、PR 和版本标签上构建并运行测试，并检查和构建管理后台 |
+| [linux-ci.yml](../../.github/workflows/linux-ci.yml)（Linux CI） | 构建并测试应用与后台；版本标签检查通过后发布 Docker Hub 镜像 |
 | [version-tag.yml](../../.github/workflows/version-tag.yml)（Create Version Tag） | `project()` 的 `VERSION` 变化时创建带注释的标签，并在该标签上启动 Linux CI |
 | [docs.yml](../../.github/workflows/docs.yml)（Documentation） | 生成 Doxygen 文档并发布到 GitHub Pages，见 [Doxygen 使用说明](doxygen.md) |
 
-应用不会被其他项目依赖，标签只用来记录版本，因此没有 Release 工作流，也不上传构建产物。目前只有 Linux CI。
+版本标签同时标识源码提交和发布的 Docker 镜像。没有单独的 GitHub Release 工作流，容器镜像发布到 [Docker Hub](https://hub.docker.com/r/yizhinailong/assistantbot)。
 
 ## 版本标签
 
@@ -95,6 +95,35 @@
 5. `pnpm build-only`：只做 Vite 构建，不再重复类型检查。
 
 只有 assistantbot 有这个任务，两个插件库没有前端。
+
+## Docker Hub 发布
+
+`docker` 任务等待两个原生测试任务和前端任务全部通过，只在 `yizhinailong/assistantbot` 仓库的版本标签上运行；普通分支和 PR 检查不发布镜像。
+
+发布任务从检出的 `CMakeLists.txt` 第一个 `project()` 调用中读取 `VERSION` 字面量，并检查 Git 标签等于 `v<VERSION>`。例如 `VERSION 0.2.0` 验证成功后，使用 Dockerfile 构建 `linux/amd64` 镜像并推送：
+
+- `yizhinailong/assistantbot:0.2.0`
+- `yizhinailong/assistantbot:latest`
+
+两个标签对应同一镜像摘要。OCI 标签记录项目版本、源码提交和仓库 URL，Actions 摘要记录发布后的 digest。Buildx 使用 GitHub Actions 缓存复用同一版本的重复构建；发布时不需要 bot 或模型的运行时凭据。
+
+在仓库 Actions secrets 中配置一次 `DOCKERHUB_TOKEN`，使用 `yizhinailong` 的 Docker Hub 个人访问令牌，并授予 Read & Write（`repo:write`）权限。工作流中的 Docker actions 都固定到提交 SHA。需要轮换凭据时：
+
+```sh
+gh secret set DOCKERHUB_TOKEN --repo yizhinailong/assistantbot
+```
+
+配置完成后，修改 `project(VERSION ...)`，提交并推送到 `master`。版本工作流创建标签并启动 Linux CI，检查通过后自动构建和上传镜像。只修改应用代码、不改 `VERSION` 时，会运行 CI，但不会发布新镜像。
+
+已有版本发布失败时，可以重跑它的 Linux CI，或在同一标签上手动启动：
+
+```sh
+gh workflow run linux-ci.yml --repo yizhinailong/assistantbot --ref v0.2.0
+```
+
+首次发布的版本若尚无标签，先创建并推送其带注释的 `v<VERSION>` 标签，再在该标签上启动 Linux CI。拉取镜像和数据持久化方法见 [Docker 使用说明](docker.md)。
+
+## 工作流维护
 
 其他约定：
 

@@ -53,6 +53,27 @@ docker compose up --detach --no-build
 
 This reads the proxy variables already exported in your shell. Model keys and bot tokens remain runtime variables and are not build arguments.
 
+## Use a Docker Hub image
+
+Published `linux/amd64` images are available at [yizhinailong/assistantbot](https://hub.docker.com/r/yizhinailong/assistantbot). Tags such as `0.1.0` use `project()`'s `VERSION` in `CMakeLists.txt`; `latest` is updated on each successful publication.
+
+After filling the four runtime credentials, set the image in `.env`:
+
+```dotenv
+ASSISTANTBOT_IMAGE=yizhinailong/assistantbot:0.1.0
+```
+
+Then pull and start without building locally:
+
+```sh
+docker compose pull assistantbot
+docker compose up --detach --no-build
+```
+
+For updates, select the next published version and repeat those commands. You can also select `latest`. Omitting `ASSISTANTBOT_IMAGE` keeps the local-build default `assistantbot:local`. Both paths use the same config and persistent data volume.
+
+Every change to `project(VERSION ...)` pushed to `master` creates a version tag. The tag's Linux CI publishes the image after native tests and frontend checks pass. Credential setup and retries are described in the [CI guide](ci.md).
+
 ## Configuration and persistence
 
 Compose mounts `config.json` read-only at `/app/config.json`. The image also contains the tracked configuration for runs outside Compose. To keep local changes in a separate file:

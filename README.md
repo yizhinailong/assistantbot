@@ -67,6 +67,8 @@ docker compose up --detach --build
 
 Compose uses host networking, a persistent SQLite volume, and a read-only configuration. NapCat runs separately. Open `http://127.0.0.1:8080`; see the [Docker guide](docs/en/docker.md) for configuration, backups, and updates.
 
+Prebuilt `linux/amd64` images are published to [Docker Hub](https://hub.docker.com/r/yizhinailong/assistantbot) after a version's CI checks pass. The image version comes from `CMakeLists.txt`; the Docker guide also explains selecting a published image with `ASSISTANTBOT_IMAGE`.
+
 ## Trying it without NapCat
 
 `scripts/chat.py` stands in for NapCat. It serves the OneBot HTTP API on `127.0.0.1:3000`, where `base_url` in `config.json` points, and posts every line you type to the bot as a signed private message from a friend. With the bot running as above, in a second terminal with the same `ONEBOT_ACCESS_TOKEN` and `ONEBOT_SECRET`:

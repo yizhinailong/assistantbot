@@ -8,11 +8,11 @@ The repository has three workflows. Their logic is written directly in the YAML,
 
 | Workflow | Purpose |
 | --- | --- |
-| [linux-ci.yml](../../.github/workflows/linux-ci.yml) (Linux CI) | Builds and runs the tests, and checks and builds the admin pages, on branch pushes, PRs, and version tags |
+| [linux-ci.yml](../../.github/workflows/linux-ci.yml) (Linux CI) | Builds and tests the app and admin pages; publishes versioned Docker Hub images after successful tag checks |
 | [version-tag.yml](../../.github/workflows/version-tag.yml) (Create Version Tag) | Creates an annotated tag when the `VERSION` of `project()` changes, then starts Linux CI on that tag |
 | [docs.yml](../../.github/workflows/docs.yml) (Documentation) | Generates the Doxygen documentation and publishes it to GitHub Pages; see the [Doxygen guide](doxygen.md) |
 
-Other projects do not depend on the app, so a tag only records the version. There is no Release workflow, and no build artifacts are uploaded. Only Linux CI exists for now.
+Version tags identify both the source revision and the published Docker image. There is no separate GitHub Release workflow; container images are published to [Docker Hub](https://hub.docker.com/r/yizhinailong/assistantbot).
 
 ## Version tags
 
@@ -95,6 +95,35 @@ The `frontend` job checks the [admin pages](admin.md) in `frontend/`. It runs be
 5. `pnpm build-only`, the Vite build without a second type check.
 
 Only assistantbot has this job; the two plugin libraries have no frontend.
+
+## Docker Hub publication
+
+The `docker` job waits for both native test jobs and the frontend job. It runs only for a version tag in `yizhinailong/assistantbot`, so ordinary branch and PR checks do not publish images.
+
+The publication reads the literal `VERSION` from the first `project()` call in the checked-out `CMakeLists.txt` and verifies that the Git tag is `v<VERSION>`. For `VERSION 0.2.0`, a successful run builds the Dockerfile for `linux/amd64` and pushes:
+
+- `yizhinailong/assistantbot:0.2.0`
+- `yizhinailong/assistantbot:latest`
+
+Both tags refer to the same image digest. OCI labels record the project version, source commit, and repository URL; the Actions summary records the published digest. Buildx uses the GitHub Actions cache for repeat builds of a release. Runtime bot/model credentials are not needed during publication.
+
+Configure the repository Actions secret `DOCKERHUB_TOKEN` once, using a Docker Hub personal access token for `yizhinailong` with Read & Write (`repo:write`) access. The workflow's Docker actions are pinned to commit SHAs. For credential rotation:
+
+```sh
+gh secret set DOCKERHUB_TOKEN --repo yizhinailong/assistantbot
+```
+
+After that, change `project(VERSION ...)`, commit, and push to `master`. The version workflow creates the tag and dispatches Linux CI; passing checks start the image publication automatically. Changing application code without changing `VERSION` runs CI but does not publish a new image.
+
+To retry a failed publication for an existing version, re-run its Linux CI workflow or dispatch it on the same tag:
+
+```sh
+gh workflow run linux-ci.yml --repo yizhinailong/assistantbot --ref v0.2.0
+```
+
+For an initial version that has no tag, create and push its annotated `v<VERSION>` tag first, then dispatch Linux CI on that tag. Image usage and persistence are covered by the [Docker guide](docker.md).
+
+## Workflow maintenance
 
 Other conventions:
 

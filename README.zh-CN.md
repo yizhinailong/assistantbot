@@ -67,6 +67,8 @@ docker compose up --detach --build
 
 Compose 使用主机网络、持久化 SQLite 卷和只读配置，NapCat 独立运行。打开 `http://127.0.0.1:8080`，配置、备份和更新方法见 [Docker 使用说明](docs/zh-CN/docker.md)。
 
+版本的 CI 检查通过后，会将预构建的 `linux/amd64` 镜像发布到 [Docker Hub](https://hub.docker.com/r/yizhinailong/assistantbot)。镜像版本来自 `CMakeLists.txt`，Docker 使用说明中也介绍了如何通过 `ASSISTANTBOT_IMAGE` 选择已发布的镜像。
+
 ## 不用 NapCat 试用
 
 `scripts/chat.py` 可以代替 NapCat：它在 `127.0.0.1:3000`（`config.json` 里 `base_url` 指向的地址）提供 OneBot HTTP 接口，并把你在终端输入的每一行，作为好友发来的私聊消息签名后发给 bot。按上文启动 bot 后，在另一个终端里设置同样的 `ONEBOT_ACCESS_TOKEN` 和 `ONEBOT_SECRET`，然后运行：
