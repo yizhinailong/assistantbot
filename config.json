@@ -1,0 +1,66 @@
+{
+  "listeners": [
+    {
+      "address": "127.0.0.1",
+      "port": 8080,
+      "https": false
+    }
+  ],
+  "app": {
+    "number_of_threads": 1,
+    "document_root": "frontend/dist",
+    "upload_path": "/tmp/assistantbot/uploads",
+    "log": {
+      "log_path": "",
+      "logfile_base_name": "",
+      "log_size_limit": 100000000,
+      "log_level": "DEBUG"
+    }
+  },
+  "plugins": [
+    {
+      "name": "admin::Auth",
+      "config": {
+        "admin_token_env": "ASSISTANTBOT_ADMIN_TOKEN"
+      }
+    },
+    {
+      "name": "drogon_onebot::OneBotClient",
+      "config": {
+        "base_url": "http://127.0.0.1:3000",
+        "access_token_env": "ONEBOT_ACCESS_TOKEN",
+        "event_path": "/onebot/event",
+        "secret_env": "ONEBOT_SECRET"
+      }
+    },
+    {
+      "name": "drogon_openai::OpenAIClient",
+      "config": {
+        "base_url": "https://api.deepseek.com",
+        "api_key_env": "DEEPSEEK_API_KEY",
+        "model": "deepseek-flash"
+      }
+    },
+    {
+      "name": "storage::Database",
+      "config": {
+        "data_dir": "data"
+      }
+    },
+    {
+      "name": "controllers::AssistantBot",
+      "dependencies": ["drogon_onebot::OneBotClient", "drogon_openai::OpenAIClient", "storage::Database"],
+      "config": {
+        "history_turns": 10,
+        "idle_reset_minutes": 30,
+        "request_timeout": 90,
+        "max_reply_chars": 1500,
+        "model": ""
+      }
+    },
+    {
+      "name": "admin::Runtime",
+      "dependencies": ["controllers::AssistantBot", "drogon_onebot::OneBotClient", "drogon_openai::OpenAIClient", "storage::Database"]
+    }
+  ]
+}
