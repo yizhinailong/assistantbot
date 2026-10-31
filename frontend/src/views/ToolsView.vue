@@ -11,6 +11,12 @@ import {
   type ToolDefinition,
   type LuaTool,
 } from '@/api/tooling'
+const defaultSchema = {
+  type: 'object',
+  properties: { text: { type: 'string' } },
+  required: ['text'],
+  additionalProperties: false,
+}
 const config = ref<FeatureSection<ToolConfig>>(),
   catalog = ref<ToolDefinition[]>([]),
   records = ref<FeatureRecord<LuaTool>[]>([])
@@ -22,9 +28,7 @@ const busy = ref(false),
   description = ref(''),
   enabled = ref(true),
   script = ref('function run(args, ctx)\n  return args\nend'),
-  schema = ref(
-    '{"type":"object","properties":{"text":{"type":"string"}},"required":["text"],"additionalProperties":false}',
-  ),
+  schema = ref(JSON.stringify(defaultSchema, null, 2)),
   args = ref('{"text":"你好"}'),
   result = ref('')
 function report(cause: unknown): void {
@@ -70,11 +74,8 @@ function edit(record?: FeatureRecord<LuaTool>): void {
   description.value = record?.value.description ?? ''
   enabled.value = record?.value.enabled ?? true
   script.value = record?.value.script ?? 'function run(args, ctx)\n  return args\nend'
-  schema.value = JSON.stringify(
-    record?.value.parameters ?? { type: 'object', properties: {}, additionalProperties: false },
-    null,
-    2,
-  )
+  schema.value = JSON.stringify(record?.value.parameters ?? defaultSchema, null, 2)
+  if (!record) args.value = '{"text":"你好"}'
   result.value = ''
 }
 function parseObject(text: string): Record<string, unknown> {
