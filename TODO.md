@@ -104,8 +104,8 @@ InSoulForge 每次启动时随机生成令牌并打印到日志里（§18.1）�
 
 InSoulForge 保存最近 50 条模型和 OneBot 的 HTTP 请求与响应（§19）。本项目的 HTTP 请求都由两个库发出，所以要先在库里加回调，再由 bot 保存。drogon-openai 的 `OPENAI_LOG` 只把请求写进日志。
 
-- [ ] drogon-openai 和 drogon-onebot 的请求回调：方法、URL、状态码、耗时，以及截断后的请求体和响应体，去掉 `Authorization`
-- [ ] `GET/DELETE /api/admin/http-traces`，并支持下载为 JSON
+- [x] drogon-openai 和 drogon-onebot 的请求回调：方法、URL、状态码、耗时，以及截断后的请求体和响应体，去掉 `Authorization`
+- [x] `GET/DELETE /api/admin/http-traces`，并支持下载为 JSON
 
 ## 群聊
 

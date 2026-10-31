@@ -236,3 +236,7 @@ New C++ code follows the `cpp-style-ref` skill (CMake + vcpkg variant). Its main
 - `.clang-format`: 4-space indent, no column limit, `InsertBraces: true`, `NamespaceIndentation: All`, left pointer alignment. It aligns trailing `///<` comments across blank lines, so give long constants a preceding doc block instead.
 - `.clang-format` must only use keys supported by the local clang-format/clangd (21.x). A single unknown key (e.g. from a config dumped by clang-format 22+) makes clang-format reject the whole file, and clangd silently falls back to LLVM style (2-space indent). Check with `clang-format --dump-config src/main.cpp` after editing it.
 - `CHECK` and `REQUIRE` are macros: a braced initializer with commas inside one splits the arguments, so build the expected value in a variable first.
+
+### HTTP tracing
+
+`admin/http_traces.*` retains 50 owned, redacted HTTP attempts. The source libraries are pinned to drogon-openai v0.3.0 and drogon-onebot v0.5.0. Use `admin::traced_model` and `traced_onebot` when constructing outgoing clients; reverse WebSocket actions emit no HTTP trace. Authentication configures secret redaction before listeners start. All three trace routes are protected by the existing pre-routing advice; downloads and DELETE are covered by `test_admin_http_traces`. Body prefixes are UTF-8 safe and omit credential fields and inline image data; traces may contain conversation text and are process-local. The frontend refreshes on small `http_trace_created` events rather than broadcasting bodies.

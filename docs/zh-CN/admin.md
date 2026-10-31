@@ -164,3 +164,9 @@ just run
 | `just frontend-fix` | `pnpm lint` 和 `pnpm format`：先应用 lint 的自动修复，再用 Prettier 格式化 `src/` |
 
 Linux CI 在单独的任务中运行 `pnpm check` 和构建，见 [版本标签与 Linux CI](ci.md)。
+
+## 请求追踪
+
+请求追踪页在内存中保留最近 50 次模型、OneBot 和 MCP 请求，显示方法、地址、状态、毫秒耗时和截断后的请求/响应正文。可以按来源筛选、暂停自动刷新、清空缓冲和下载当前筛选结果的 JSON。管理副本会去掉认证头、已配置的密钥、凭据字段和内联图片数据；正文仍可能包含对话内容。重启后不保留追踪。
+
+`GET /api/admin/http-traces?source=model|onebot|mcp` 读取缓冲，省略来源则读取全部；`DELETE /api/admin/http-traces` 清空；`GET /api/admin/http-traces/download` 下载 JSON，接受相同筛选。`/api/admin/ws` 用 `http_trace_created` 通知新增记录。OneBot 反向 WebSocket 动作不产生 HTTP 追踪。

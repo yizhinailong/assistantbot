@@ -164,3 +164,9 @@ Access endpoints require authentication. Invalid input returns 400, overlapping 
 | `just frontend-fix` | `pnpm lint` and `pnpm format`: apply the lint fixes, then format `src/` with Prettier |
 
 Linux CI runs `pnpm check` and the build in a separate job; see [Version tags and Linux CI](ci.md).
+
+## HTTP traces
+
+The HTTP traces page retains the latest 50 model, OneBot, and MCP attempts in memory. It shows method, endpoint, status, elapsed milliseconds, and bounded request/response bodies. Filter by source, pause automatic refresh, clear the buffer, or download the current selection as JSON. Authentication headers, configured credentials, credential-shaped fields, and inline image data are removed from the administrative copy. Request bodies can still contain conversation text. No trace survives a restart.
+
+`GET /api/admin/http-traces?source=model|onebot|mcp` reads the buffer; omit `source` for all requests. `DELETE /api/admin/http-traces` clears it. `GET /api/admin/http-traces/download` downloads JSON and accepts the same filter. `/api/admin/ws` announces new entries with `http_trace_created`. Reverse WebSocket OneBot actions produce no HTTP trace.
