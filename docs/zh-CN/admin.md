@@ -170,3 +170,9 @@ Linux CI 在单独的任务中运行 `pnpm check` 和构建，见 [版本标签�
 请求追踪页在内存中保留最近 50 次模型、OneBot 和 MCP 请求，显示方法、地址、状态、毫秒耗时和截断后的请求/响应正文。可以按来源筛选、暂停自动刷新、清空缓冲和下载当前筛选结果的 JSON。管理副本会去掉认证头、已配置的密钥、凭据字段和内联图片数据；正文仍可能包含对话内容。重启后不保留追踪。
 
 `GET /api/admin/http-traces?source=model|onebot|mcp` 读取缓冲，省略来源则读取全部；`DELETE /api/admin/http-traces` 清空；`GET /api/admin/http-traces/download` 下载 JSON，接受相同筛选。`/api/admin/ws` 用 `http_trace_created` 通知新增记录。OneBot 反向 WebSocket 动作不产生 HTTP 追踪。
+
+## 群聊
+
+群聊页通过类型化 OneBot 接口读取已加入的群，所有群默认关闭。每个群可以设置启用、自动回复（关闭时需提及机器人）、群名片/昵称上下文、群命令和附加系统提示词，下一条消息起生效。管理员可以使用 `/on`、`/off`、`/auto on`、`/auto off`、`/prompt 提示词`、`/help`、`/reset`；管理员名单只授予群命令权限。暂停和黑名单仍然有效，私聊允许名单不限制已启用的群。
+
+`GET /api/admin/groups` 合并群列表与配置；`PUT /api/admin/groups/{qq}` 接收 `{values, revision}`。通用配置使用 `GET/PUT /api/admin/features/{section}`，节名为 `groups`、`admins`、`models`、`execution`、`memory`、`tools`、`mcp`。过期版本返回 409。会话接口和订阅中，正数字符串表示好友，负数字符串表示群；消息另含 `sender_id`、`group_id`。重启保留配置和聊天记录，但不从记录恢复模型上下文。
