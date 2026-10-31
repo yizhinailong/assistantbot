@@ -64,6 +64,11 @@ namespace storage {
                     "CREATE TABLE memories (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER NOT NULL CHECK(session_id != 0), content TEXT NOT NULL, embedding TEXT NOT NULL, embedding_space TEXT NOT NULL, revision INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL) STRICT",
                     "CREATE INDEX memories_session_id ON memories (session_id, id)",
                 },
+                // 8: UTC reminders survive restart and claim delivery at most once.
+                {
+                    "CREATE TABLE scheduled_tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER NOT NULL, sender_id INTEGER NOT NULL, due_at INTEGER NOT NULL, content TEXT NOT NULL, daily INTEGER NOT NULL CHECK(daily IN (0,1)), status TEXT NOT NULL CHECK(status IN ('pending','running','done','failed','cancelled')), error TEXT NOT NULL, created_at INTEGER NOT NULL) STRICT",
+                    "CREATE INDEX scheduled_tasks_due ON scheduled_tasks (status, due_at)",
+                },
             };
             return list;
         }

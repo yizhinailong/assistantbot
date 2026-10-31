@@ -35,12 +35,13 @@ namespace test_support {
         }
 
         /**
-         * @brief Read the oldest observation, waiting at most two seconds.
+         * @brief Read the oldest observation with a bounded wait.
+         * @param timeout Maximum wait; defaults to two seconds.
          * @return Request or empty on timeout.
          */
-        auto Pop() -> std::optional<T> {
+        auto Pop(std::chrono::milliseconds timeout = std::chrono::seconds{ 2 }) -> std::optional<T> {
             std::unique_lock lock{ m_mutex };
-            if (!m_ready.wait_for(lock, std::chrono::seconds{ 2 }, [this] { return !m_items.empty(); })) {
+            if (!m_ready.wait_for(lock, timeout, [this] { return !m_items.empty(); })) {
                 return {};
             }
             auto value{ std::move(m_items.front()) };

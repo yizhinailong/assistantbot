@@ -17,6 +17,7 @@ namespace workflow {
     class BotSettings;
     class FeatureSettings;
     class PrivateChat;
+    class ScheduledTasks;
     class ModelRoles;
     class MemoryService;
 
@@ -58,6 +59,7 @@ namespace controllers {
         std::shared_ptr<workflow::PrivateChat> m_chat;         ///< Handler state, shared with the registered message handler.
         std::shared_ptr<std::atomic_bool> m_paused;            ///< Pause flag shared with the registered message handler.
         std::shared_ptr<workflow::BotSettings> m_settings;     ///< Live reply settings shared with the workflow.
+        std::shared_ptr<workflow::ScheduledTasks> m_tasks;     ///< Durable reminder service.
         std::shared_ptr<workflow::ModelRoles> m_models;        ///< Shared independent model endpoints.
         std::shared_ptr<workflow::MemoryService> m_memory;     ///< Persistent optional memory service.
         std::shared_ptr<workflow::FeatureSettings> m_features; ///< Optional capabilities and group settings.
@@ -126,6 +128,12 @@ namespace controllers {
          * @return Memory service during plugin lifetime.
          */
         [[nodiscard]] auto Memory() const -> std::shared_ptr<workflow::MemoryService>;
+
+        /**
+         * @brief Get the durable conversation reminder service.
+         * @return Task service during plugin lifetime.
+         */
+        [[nodiscard]] auto Tasks() const -> std::shared_ptr<workflow::ScheduledTasks>;
 
         /**
          * @brief Drop the plugin's reference to the handler state.

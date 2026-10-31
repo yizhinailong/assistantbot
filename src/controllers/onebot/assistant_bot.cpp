@@ -20,6 +20,7 @@
 #include "workflow/feature_settings.hpp"
 #include "workflow/memory.hpp"
 #include "workflow/private_chat.hpp"
+#include "workflow/scheduled_tasks.hpp"
 
 namespace controllers {
 
@@ -174,6 +175,29 @@ namespace controllers {
         m_chat = std::make_shared<workflow::PrivateChat>(m_settings, admin::traced_onebot(), admin::traced_model(openai->NewOpenAIClient()), database->Client(), openai->Config().model);
         m_paused = std::make_shared<std::atomic_bool>(false);
         m_access = std::make_shared<workflow::AccessControl>(database->Client());
+        m_tasks = std::make_shared<workflow::ScheduledTasks>(database->Client(), [chat = std::weak_ptr{ m_chat }, paused = m_paused, access = m_access, features = m_features](workflow::Peer peer, std::string content) -> drogon::Task<> {
+            auto workflow{ chat.lock() };
+            if (!workflow || paused->load()) {
+                throw std::runtime_error{ "bot is paused or stopped" };
+            }
+            if (peer.group_id == 0 && !access->Current()->Allows(peer.user_id)) {
+                throw std::runtime_error{ "recipient is excluded by access policy" };
+            }
+            if (peer.group_id != 0) {
+                if (access->Current()->blacklist.contains(peer.user_id)) {
+                    throw std::runtime_error{ "creator is blacklisted" };
+                }
+                auto const group{ (*features->Current())["groups"][std::to_string(peer.group_id)] };
+                if (!group.get("enabled", false).asBool()) {
+                    throw std::runtime_error{ "group is disabled" };
+                }
+                peer.additional_prompt = group["additional_prompt"].asString();
+            }
+            auto prompt{ "[定时任务] " + content };
+            co_await workflow->Observe(peer, prompt, {});
+            co_await workflow->Chat(peer, std::move(prompt));
+        });
+        m_tasks->Start();
         onebot->OnMessage([chat = m_chat, paused = m_paused, access = m_access, features = m_features](drogon_onebot::MessageEvent event) -> drogon::Task<> {
             co_await handle_message(chat, paused, access, features, std::move(event));
         });
@@ -220,6 +244,10 @@ namespace controllers {
      * Handlers that are still running keep their own reference until they end.
      */
     auto AssistantBot::shutdown() -> void {
+        if (m_tasks) {
+            m_tasks->Stop();
+        }
+        m_tasks.reset();
         m_memory.reset();
         m_models.reset();
         m_features.reset();
@@ -259,6 +287,14 @@ namespace controllers {
      */
     auto AssistantBot::Memory() const -> std::shared_ptr<workflow::MemoryService> {
         return m_memory;
+    }
+
+    /**
+     * @brief Get the durable conversation reminder service.
+     * @return Task service during plugin lifetime.
+     */
+    auto AssistantBot::Tasks() const -> std::shared_ptr<workflow::ScheduledTasks> {
+        return m_tasks;
     }
 
 } // namespace controllers
