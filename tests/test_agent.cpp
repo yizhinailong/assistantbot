@@ -164,6 +164,32 @@ DROGON_TEST(AgentRolesAndMemoryAffectActualRequests) {
     CHECK(sends == 0);
 }
 
+DROGON_TEST(AgentOffersOnlyAvailableCapabilitiesAndResolvesSourceImages) {
+    auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
+    auto features{ std::make_shared<workflow::FeatureSettings>(db) };
+    auto roles{ workflow::default_feature_settings()["models"] };
+    drogon::sync_wait(features->Update("models", roles));
+    drogon::sync_wait(features->Update("memory", workflow::default_feature_settings()["memory"]));
+    auto tools{ workflow::default_feature_settings()["tools"] };
+    tools["enabled"] = true;
+    drogon::sync_wait(features->Update("tools", tools));
+    auto models{ std::make_shared<workflow::ModelRoles>(drogon_openai::OpenAI{ { .base_url = std::string{ test_support::SERVER_URL } + "/agent", .model = "agent", .max_retries = 0 } }, db, "agent") };
+    auto memory{ std::make_shared<workflow::MemoryService>(db, models) };
+    workflow::AgentRuntime agent{ features, models, memory, drogon::app().getPlugin<controllers::AssistantBot>()->Tasks(), db, drogon_onebot::OneBot{ { .base_url = std::string{ test_support::SERVER_URL } + "/napcat" } } };
+    auto send{ [](drogon_onebot::Message, std::string) -> drogon::Task<Json::Value> {throw std::runtime_error{"unexpected send"};co_return Json::Value{}; } };
+    drogon_openai::ChatCompletionCreateParams params{};
+    params.messages = { { .role = "user", .content = "capability gates" } };
+    auto result{ drogon::sync_wait(agent.Run({ .user_id = 55005 }, params, "capability gates", send)) };
+    CHECK(result.text == "gates checked");
+    roles["vision"]["enabled"] = true;
+    roles["vision"]["model"] = "vision";
+    drogon::sync_wait(features->Update("models", roles));
+    params.messages = { { .role = "user", .content = "image reference" } };
+    result = drogon::sync_wait(agent.Run({ .user_id = 55005, .message_id = 42, .image_urls = { "https://example.test/current.png" } }, params, "image reference", send));
+    CHECK(result.completed);
+    CHECK(result.text == "image checked");
+}
+
 DROGON_TEST(McpSchemasRequireSelectionAndDoNotLeakAcrossReplies) {
     auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
     auto features{ std::make_shared<workflow::FeatureSettings>(db) };
@@ -205,6 +231,12 @@ auto main(int argc, char** argv) -> int {
             response->setStatusCode(drogon::k503ServiceUnavailable);
             co_return response;
         }
+        if (model == "vision") {
+            if ((*body)["messages"][0]["content"][1]["image_url"]["url"] != "https://example.test/current.png") {
+                throw std::runtime_error{ "vision did not receive the selected source image" };
+            }
+            co_return drogon::HttpResponse::newHttpJsonResponse(completion(model, "source image"));
+        }
         for (auto const& message : (*body)["messages"]) {
             if (message["role"] == "system" && message["content"].isString() && message["content"].asString().contains("likes tea")) {
                 saw_memory = true;
@@ -221,7 +253,28 @@ auto main(int argc, char** argv) -> int {
             }
         }
         Json::Value result{};
-        if (model == "decision-deny") {
+        if (prompt == "capability gates") {
+            for (auto const& tool : (*body)["tools"]) {
+                auto const name{ tool["function"]["name"].asString() };
+                if (name == "reply_with_quote" || name == "deep_think" || name == "generate_image" || name == "ask_images" || name == "recall_memory" || name == "save_memory" || name == "delete_memory") {
+                    throw std::runtime_error{ "unavailable capability was offered: " + name };
+                }
+            }
+            result = completion(model, "gates checked");
+        } else if (prompt == "image reference") {
+            if (calls == 0) {
+                auto const metadata{ (*body)["messages"][(*body)["messages"].size() - 2]["content"].asString() };
+                if (!metadata.contains("42") || !metadata.contains("image_count")) {
+                    throw std::runtime_error{ "source metadata is absent" };
+                }
+                result = completion(model, "", "ask_images", common::parse_json(R"({"question":"Describe","images":[0]})"));
+            } else {
+                if (!(*body)["messages"][(*body)["messages"].size() - 1]["content"].asString().contains("source image")) {
+                    throw std::runtime_error{ "vision tool result is absent" };
+                }
+                result = completion(model, "image checked");
+            }
+        } else if (model == "decision-deny") {
             result = completion(model, R"({"reply":false})");
         } else if (model == "fallback") {
             result = completion(model, "fallback");
