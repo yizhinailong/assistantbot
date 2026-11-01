@@ -1,6 +1,6 @@
 /**
  * @file assistant_bot.hpp
- * @brief Declare the plugin that turns the OneBot and OpenAI plugins into a private chat bot.
+ * @brief Declare the service that turns the OneBot and OpenAI plugins into a private chat bot.
  */
 #pragma once
 
@@ -8,8 +8,16 @@
 #include <cstddef>
 #include <memory>
 
-#include <drogon/plugins/Plugin.h>
+#include <drogon/orm/DbClient.h>
 #include <json/value.h>
+
+namespace drogon_onebot {
+    class OneBotClient;
+} // namespace drogon_onebot
+
+namespace drogon_openai {
+    class OpenAIClient;
+} // namespace drogon_openai
 
 namespace workflow {
 
@@ -46,15 +54,12 @@ namespace controllers {
     /**
      * @brief Answer the private messages of QQ friends with an OpenAI-compatible model.
      *
-     * Register it in config.json after `drogon_onebot::OneBotClient`,
-     * `drogon_openai::OpenAIClient`, and `storage::Database`, and list the three under its
-     * `dependencies`, so that drogon initializes them first. The OneBot plugin needs an
-     * `event_path`, or no message reaches the bot. `workflow::parse_bot_config()` describes
-     * the plugin's own config keys, and `workflow::BotSettings` how the overrides saved in
-     * the database apply on top of them. `workflow::AccessControl` persists the mode and
-     * lists edited through the admin pages.
+     * `app::Application` supplies the initialized OneBot and OpenAI plugins and database.
+     * The OneBot plugin needs an `event_path`, or no message reaches the bot.
+     * `workflow::parse_bot_config()` describes `config.bot`, and `workflow::BotSettings`
+     * applies saved overrides. `workflow::AccessControl` persists the mode and lists.
      */
-    class AssistantBot : public drogon::Plugin<AssistantBot> {
+    class AssistantBot {
     private:
         std::shared_ptr<workflow::PrivateChat> m_chat;         ///< Handler state, shared with the registered message handler.
         std::shared_ptr<std::atomic_bool> m_paused;            ///< Pause flag shared with the registered message handler.
@@ -73,12 +78,19 @@ namespace controllers {
          * all but private friend messages allowed by the access policy. It answers `HELP_COMMAND`,
          * `RESET_COMMAND`, and a message without text itself, and passes any other text to
          * `workflow::PrivateChat::Chat`.
-         * @param config The plugin's `config` object.
-         * @throws std::invalid_argument If the config, saved overrides, or access policy are invalid, or a
-         * dependency is not loaded.
+         * @param config Application `bot` settings.
+         * @param onebot Initialized OneBot plugin for message registration.
+         * @param openai Initialized OpenAI plugin for model clients.
+         * @param database Opened and migrated SQLite client.
+         * @throws std::invalid_argument If the config, saved overrides, or access policy are invalid.
          * @throws std::runtime_error If the saved overrides cannot be read.
          */
-        auto initAndStart(Json::Value const& config) -> void override;
+        auto Start(
+            Json::Value const& config,
+            drogon_onebot::OneBotClient& onebot,
+            drogon_openai::OpenAIClient& openai,
+            drogon::orm::DbClientPtr database
+        ) -> void;
 
         /**
          * @brief Report whether new friend messages are paused.
@@ -107,40 +119,40 @@ namespace controllers {
 
         /**
          * @brief Get the persistent reply settings shared with the workflow.
-         * @return Settings manager during the plugin lifetime.
+         * @return Settings manager during the application lifetime.
          */
         [[nodiscard]] auto Settings() const -> std::shared_ptr<workflow::BotSettings>;
 
         /**
          * @brief Get the shared chat workflow for authenticated session inspection and reset.
-         * @return Workflow during the plugin lifetime.
+         * @return Workflow during the application lifetime.
          */
         [[nodiscard]] auto Chat() const -> std::shared_ptr<workflow::PrivateChat>;
 
         /**
          * @brief Get the immutable optional-feature settings manager.
-         * @return Settings manager during the plugin lifetime.
+         * @return Settings manager during the application lifetime.
          */
         [[nodiscard]] auto Features() const -> std::shared_ptr<workflow::FeatureSettings>;
 
         /**
          * @brief Get the persistent memory service used by the bot and admin endpoints.
-         * @return Memory service during plugin lifetime.
+         * @return Memory service during application lifetime.
          */
         [[nodiscard]] auto Memory() const -> std::shared_ptr<workflow::MemoryService>;
 
         /**
          * @brief Get the durable conversation reminder service.
-         * @return Task service during plugin lifetime.
+         * @return Task service during application lifetime.
          */
         [[nodiscard]] auto Tasks() const -> std::shared_ptr<workflow::ScheduledTasks>;
 
         /**
-         * @brief Drop the plugin's reference to the handler state.
+         * @brief Drop the service's reference to the handler state.
          *
          * Handlers that are still running keep their own reference until they end.
          */
-        auto shutdown() -> void override;
+        auto Stop() -> void;
     };
 
 } // namespace controllers

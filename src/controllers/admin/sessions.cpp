@@ -8,6 +8,7 @@
 #include <map>
 #include <vector>
 
+#include "application.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
 #include "servers/http_helpers.hpp"
 #include "storage/database.hpp"
@@ -49,8 +50,8 @@ namespace controllers {
          * @return Detail object, or null when the friend has never been observed.
          */
         auto session_detail(std::int64_t user_id) -> drogon::Task<Json::Value> {
-            auto const chat{ drogon::app().getPlugin<AssistantBot>()->Chat() };
-            auto const persisted{ co_await storage::message_peers(drogon::app().getPlugin<storage::Database>()->Client(), user_id) };
+            auto const chat{ drogon::app().getPlugin<app::Application>()->Bot().Chat() };
+            auto const persisted{ co_await storage::message_peers(drogon::app().getPlugin<app::Application>()->Database().Client(), user_id) };
             auto const memory{ chat->Session(user_id) };
             if (!memory && persisted.empty()) {
                 co_return Json::Value{};
@@ -79,12 +80,12 @@ namespace controllers {
         drogon::HttpRequestPtr /*req*/
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
         try {
-            auto const peers{ co_await storage::message_peers(drogon::app().getPlugin<storage::Database>()->Client()) };
+            auto const peers{ co_await storage::message_peers(drogon::app().getPlugin<app::Application>()->Database().Client()) };
             std::map<std::int64_t, Json::Value> by_user{};
             for (auto const& peer : peers) {
                 by_user[workflow::parse_conversation(peer["user_id"].asString())] = summary_json(peer, std::nullopt);
             }
-            for (auto const& summary : drogon::app().getPlugin<AssistantBot>()->Chat()->Sessions()) {
+            for (auto const& summary : drogon::app().getPlugin<app::Application>()->Bot().Chat()->Sessions()) {
                 auto& peer{ by_user[summary.user_id] };
                 if (peer.isNull()) {
                     peer = Json::Value{ Json::objectValue };
@@ -147,7 +148,7 @@ namespace controllers {
             if ((co_await session_detail(id)).isNull()) {
                 co_return admin::json_error("session not found", drogon::k404NotFound);
             }
-            drogon::app().getPlugin<AssistantBot>()->Chat()->Reset(id);
+            drogon::app().getPlugin<app::Application>()->Bot().Chat()->Reset(id);
             co_return drogon::HttpResponse::newHttpJsonResponse(co_await session_detail(id));
         } catch (std::invalid_argument const& error) {
             co_return admin::json_error(error.what(), drogon::k400BadRequest);
@@ -181,7 +182,7 @@ namespace controllers {
             if (before && after) {
                 throw std::invalid_argument{ "before and after cannot be combined" };
             }
-            co_return drogon::HttpResponse::newHttpJsonResponse(co_await storage::message_page(drogon::app().getPlugin<storage::Database>()->Client(), id, limit, before, after));
+            co_return drogon::HttpResponse::newHttpJsonResponse(co_await storage::message_page(drogon::app().getPlugin<app::Application>()->Database().Client(), id, limit, before, after));
         } catch (std::invalid_argument const& error) {
             co_return admin::json_error(error.what(), drogon::k400BadRequest);
         } catch (std::exception const& error) {

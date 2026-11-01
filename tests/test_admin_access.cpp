@@ -11,6 +11,7 @@
 #include <drogon/drogon.h>
 #include <drogon/drogon_test.h>
 
+#include "application.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
 #include "storage/database.hpp"
 #include "support.hpp"
@@ -145,7 +146,7 @@ DROGON_TEST(AccessRoundTripAndFriendAnnotations) {
     friends = success(request_admin("/api/admin/friends"))["friends"];
     CHECK(!friends[0]["allowed"].asBool());
     CHECK(friends[1]["allowed"].asBool());
-    auto const saved{ drogon::app().getPlugin<controllers::AssistantBot>()->Access()->Current() };
+    auto const saved{ drogon::app().getPlugin<app::Application>()->Bot().Access()->Current() };
     CHECK(saved->allowlist.contains(9007199254740993LL));
     for (auto const* path : { "/api/admin/allowlist", "/api/admin/blacklist" }) {
         success(request_admin(std::string{ path } + "/12345", drogon::Delete));
@@ -155,7 +156,7 @@ DROGON_TEST(AccessRoundTripAndFriendAnnotations) {
 }
 
 DROGON_TEST(AccessRejectsInvalidModeAndQqWithoutChangingPolicy) {
-    auto const before{ drogon::app().getPlugin<controllers::AssistantBot>()->Access()->Current() };
+    auto const before{ drogon::app().getPlugin<app::Application>()->Bot().Access()->Current() };
     for (auto const& body : { Json::Value{}, Json::Value{ Json::arrayValue }, Json::Value{ Json::objectValue }, field("mode", "everyone"), field("mode", true), field("qq", "12345") }) {
         auto const response{ request_admin("/api/admin/access", drogon::Put, body) };
         CHECK(response->statusCode() == drogon::k400BadRequest);
@@ -188,7 +189,7 @@ DROGON_TEST(AccessRejectsInvalidModeAndQqWithoutChangingPolicy) {
             CHECK(request_admin(std::string{ path } + "/" + qq, drogon::Delete)->statusCode() == drogon::k400BadRequest);
         }
     }
-    CHECK(drogon::app().getPlugin<controllers::AssistantBot>()->Access()->Current() == before);
+    CHECK(drogon::app().getPlugin<app::Application>()->Bot().Access()->Current() == before);
 }
 
 DROGON_TEST(FriendFailureDoesNotPreventEditingLists) {
@@ -204,8 +205,8 @@ DROGON_TEST(FriendFailureDoesNotPreventEditingLists) {
 }
 
 DROGON_TEST(AccessApiReportsSaveFailuresAndConflicts) {
-    auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
-    auto const access{ drogon::app().getPlugin<controllers::AssistantBot>()->Access() };
+    auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
+    auto const access{ drogon::app().getPlugin<app::Application>()->Bot().Access() };
     auto const before{ access->Current() };
     db->execSqlSync("PRAGMA query_only = ON");
     auto const failed{ request_admin("/api/admin/blacklist", drogon::Post, field("qq", "88888")) };

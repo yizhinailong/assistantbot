@@ -3,6 +3,7 @@
  * @brief Verify terminal tool messages obey text splitting, quote scope, and append-only delivery records.
  */
 #include "admin_support.hpp"
+#include "application.hpp"
 #include "common/json.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
 #include "inbox.hpp"
@@ -17,7 +18,7 @@ namespace {
 }
 
 DROGON_TEST(ToolRepliesSplitUtf8AndQuoteOnlyTheFirstPart) {
-    auto* bot{ drogon::app().getPlugin<controllers::AssistantBot>() };
+    auto* bot{ &drogon::app().getPlugin<app::Application>()->Bot() };
     auto tools{ bot->Features()->Describe("tools")["values"] };
     tools["enabled"] = true;
     drogon::sync_wait(bot->Features()->Update("tools", tools));
@@ -47,7 +48,7 @@ DROGON_TEST(ToolRepliesSplitUtf8AndQuoteOnlyTheFirstPart) {
     REQUIRE(detail);
     REQUIRE(detail->history.size() == 1);
     CHECK(detail->history[0].assistant == joined);
-    auto records{ drogon::sync_wait(storage::message_page(drogon::app().getPlugin<storage::Database>()->Client(), 77001, 20)) };
+    auto records{ drogon::sync_wait(storage::message_page(drogon::app().getPlugin<app::Application>()->Database().Client(), 77001, 20)) };
     CHECK(records["messages"].size() == 3);
     for (auto const& message : records["messages"]) {
         CHECK(message["status"] == "sent");

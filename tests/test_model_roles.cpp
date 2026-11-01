@@ -3,6 +3,7 @@
  * @brief Verify role isolation, credential inheritance, embeddings, images, and usage accounting.
  */
 #include "admin_support.hpp"
+#include "application.hpp"
 #include "inbox.hpp"
 #include "servers/http_traces.hpp"
 #include "storage/database.hpp"
@@ -15,7 +16,7 @@ namespace {
 }
 
 DROGON_TEST(CustomRoleEndpointsDoNotInheritPrimaryCredentials) {
-    auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
+    auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
     workflow::ModelRoles models{ drogon_openai::OpenAI{ { .base_url = std::string{ test_support::SERVER_URL } + "/role", .api_key = "primary-secret", .model = "primary" } }, db, "primary" };
     auto snapshot{ workflow::default_feature_settings() };
     auto& role{ snapshot["models"]["thinking"] };
@@ -42,7 +43,7 @@ DROGON_TEST(CustomRoleEndpointsDoNotInheritPrimaryCredentials) {
 }
 
 DROGON_TEST(EmbeddingAndImageRolesUseTypedResourcesAndRecordUsage) {
-    auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
+    auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
     workflow::ModelRoles models{ drogon_openai::OpenAI{ { .base_url = std::string{ test_support::SERVER_URL } + "/role", .model = "primary" } }, db, "primary" };
     auto snapshot{ workflow::default_feature_settings() };
     for (auto const* name : { "embedding", "image_generation" }) {

@@ -27,6 +27,7 @@
 #include <drogon/drogon_test.h>
 #include <drogon/utils/coroutine.h>
 
+#include "application.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
 #include "storage/database.hpp"
 #include "storage/messages.hpp"
@@ -355,7 +356,7 @@ namespace {
      * @throws std::runtime_error If the rows do not arrive in time.
      */
     auto wait_messages(std::int64_t user_id, std::size_t count) -> Json::Value {
-        auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
+        auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
         auto const deadline{ std::chrono::steady_clock::now() + REPLY_WAIT };
         while (std::chrono::steady_clock::now() < deadline) {
             auto page{ drogon::sync_wait(storage::message_page(db, user_id, 200)) };
@@ -377,8 +378,8 @@ namespace {
      * @throws std::runtime_error If an accepted workflow does not finish in time.
      */
     auto drain_chat() -> void {
-        auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
-        auto const chat{ drogon::app().getPlugin<controllers::AssistantBot>()->Chat() };
+        auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
+        auto const chat{ drogon::app().getPlugin<app::Application>()->Bot().Chat() };
         auto const deadline{ std::chrono::steady_clock::now() + REPLY_WAIT };
         while (std::chrono::steady_clock::now() < deadline) {
             auto const rows{ db->execSqlSync("SELECT count(*) AS n FROM chat_messages WHERE direction = 'outgoing'") };
@@ -519,7 +520,7 @@ DROGON_TEST(PauseDropsNewMessagesBeforeCommandsAndQueue) {
 }
 
 DROGON_TEST(RecordsSuccessfulFailedAndUnreportedModelUsage) {
-    auto const database{ drogon::app().getPlugin<storage::Database>()->Client() };
+    auto const database{ drogon::app().getPlugin<app::Application>()->Database().Client() };
     auto const before{ drogon::sync_wait(storage::summarize_usage(database, 0, 4102444800)) };
     CHECK(say(20012, "usage test") == drogon::k204NoContent);
     CHECK(g_sent.Pop(20012, REPLY_WAIT) == "echo: usage test");
@@ -532,7 +533,7 @@ DROGON_TEST(RecordsSuccessfulFailedAndUnreportedModelUsage) {
     CHECK(after["successful_requests"].asInt64() - before["successful_requests"].asInt64() == 2);
     CHECK(after["reported_requests"].asInt64() - before["reported_requests"].asInt64() == 1);
     CHECK(after["total_tokens"].asInt64() - before["total_tokens"].asInt64() == 8);
-    CHECK(drogon::app().getPlugin<controllers::AssistantBot>()->SessionCount() > 0);
+    CHECK(drogon::app().getPlugin<app::Application>()->Bot().SessionCount() > 0);
 }
 
 DROGON_TEST(AccessFiltersBeforeCommandsAndPreservesBlockedUsersHistory) {
@@ -622,7 +623,7 @@ DROGON_TEST(ChatRecordsIncludeCommandsIgnoredMessagesAndModelFailureNotices) {
     CHECK(g_sent.Pop(20101, REPLY_WAIT) == workflow::FAILURE_REPLY);
     CHECK(say(20101, controllers::HELP_COMMAND) == drogon::k204NoContent);
     CHECK(g_sent.Pop(20101, REPLY_WAIT) == controllers::HELP_REPLY);
-    auto const pause{ drogon::app().getPlugin<controllers::AssistantBot>() };
+    auto const pause{ &drogon::app().getPlugin<app::Application>()->Bot() };
     pause->SetPaused(true);
     CHECK(say(20101, "ignored during pause") == drogon::k204NoContent);
     auto const records{ wait_messages(20101, 5)["messages"] };
@@ -657,7 +658,7 @@ DROGON_TEST(RecordsTypedDeepSeekAndZeroCacheTokens) {
         CHECK(g_sent.Pop(20103, REPLY_WAIT) == std::string{ "echo: " } + prompt);
     }
     wait_messages(20103, 6);
-    auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
+    auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
     auto const rows{ db->execSqlSync("SELECT cached_tokens FROM model_usage WHERE user_id = 20103 ORDER BY id") };
     REQUIRE(rows.size() == 3);
     CHECK(rows[0]["cached_tokens"].as<std::int64_t>() == 3);
@@ -725,7 +726,7 @@ DROGON_TEST(RemoteResetClearsPendingAndRejectsTheInflightContext) {
 }
 
 DROGON_TEST(GroupsRequireOptInAndHonorCardsPromptsCommandsAndSeparateContexts) {
-    auto const features{ drogon::app().getPlugin<controllers::AssistantBot>()->Features() };
+    auto const features{ drogon::app().getPlugin<app::Application>()->Bot().Features() };
     Json::Value groups{ Json::objectValue };
     groups["40002"]["enabled"] = true;
     groups["40002"]["additional_prompt"] = "Group instructions";

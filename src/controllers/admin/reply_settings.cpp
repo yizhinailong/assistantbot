@@ -6,6 +6,7 @@
 
 #include <drogon_openai/openai_client.hpp>
 
+#include "application.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
 #include "servers/http_helpers.hpp"
 #include "servers/live_events.hpp"
@@ -21,7 +22,7 @@ namespace controllers {
     auto ReplySettingsController::Settings(
         drogon::HttpRequestPtr req
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
-        auto const settings{ drogon::app().getPlugin<AssistantBot>()->Settings() };
+        auto const settings{ drogon::app().getPlugin<app::Application>()->Bot().Settings() };
         try {
             if (req->method() == drogon::Put) {
                 auto const body{ req->getJsonObject() };

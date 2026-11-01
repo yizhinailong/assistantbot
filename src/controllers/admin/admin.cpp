@@ -4,6 +4,7 @@
  */
 #include "controllers/admin/admin.hpp"
 
+#include "application.hpp"
 #include "servers/auth.hpp"
 
 namespace controllers {
@@ -22,7 +23,7 @@ namespace controllers {
             response->setStatusCode(drogon::k400BadRequest);
             co_return response;
         }
-        auto* auth{ drogon::app().getPlugin<admin::Auth>() };
+        auto* auth{ &drogon::app().getPlugin<app::Application>()->Auth() };
         auto const session{ auth->Login((*input)["token"].asString()) };
         if (session.empty()) {
             body["error"] = "invalid administrator token";
@@ -51,8 +52,8 @@ namespace controllers {
         drogon::HttpRequestPtr req
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
         Json::Value body{ Json::objectValue };
-        auto const* auth{ drogon::app().getPlugin<admin::Auth>() };
-        body["authenticated"] = auth != nullptr && auth->Authenticated(req->getCookie(admin::ADMIN_SESSION_COOKIE));
+        auto* const application{ drogon::app().getPlugin<app::Application>() };
+        body["authenticated"] = application != nullptr && application->Auth().Authenticated(req->getCookie(admin::ADMIN_SESSION_COOKIE));
         co_return drogon::HttpResponse::newHttpJsonResponse(body);
     }
 
@@ -62,7 +63,7 @@ namespace controllers {
      * @return JSON authentication state and an expired cookie.
      */
     auto Admin::Logout(drogon::HttpRequestPtr req) const -> drogon::Task<drogon::HttpResponsePtr> {
-        drogon::app().getPlugin<admin::Auth>()->Logout(req->getCookie(admin::ADMIN_SESSION_COOKIE));
+        drogon::app().getPlugin<app::Application>()->Auth().Logout(req->getCookie(admin::ADMIN_SESSION_COOKIE));
         Json::Value body{ Json::objectValue };
         body["authenticated"] = false;
         auto response{ drogon::HttpResponse::newHttpJsonResponse(body) };

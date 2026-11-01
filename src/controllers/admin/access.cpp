@@ -13,6 +13,7 @@
 
 #include <drogon_onebot/onebot_client.hpp>
 
+#include "application.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
 #include "servers/http_traces.hpp"
 #include "workflow/access_control.hpp"
@@ -89,7 +90,7 @@ namespace controllers {
             std::string qq = {}
         ) -> drogon::Task<drogon::HttpResponsePtr> {
             try {
-                auto const access{ drogon::app().getPlugin<AssistantBot>()->Access() };
+                auto const access{ drogon::app().getPlugin<app::Application>()->Bot().Access() };
                 std::shared_ptr<workflow::AccessPolicy const> saved{};
                 if (list) {
                     auto const removing{ req->method() == drogon::Delete };
@@ -120,7 +121,7 @@ namespace controllers {
         drogon::HttpRequestPtr req
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
         if (req->method() == drogon::Get) {
-            co_return policy_response(*drogon::app().getPlugin<AssistantBot>()->Access()->Current());
+            co_return policy_response(*drogon::app().getPlugin<app::Application>()->Bot().Access()->Current());
         }
         co_return co_await write_policy(std::move(req));
     }
@@ -134,7 +135,7 @@ namespace controllers {
         drogon::HttpRequestPtr req
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
         if (req->method() == drogon::Get) {
-            co_return policy_response(*drogon::app().getPlugin<AssistantBot>()->Access()->Current(), workflow::AccessList::Allowlist);
+            co_return policy_response(*drogon::app().getPlugin<app::Application>()->Bot().Access()->Current(), workflow::AccessList::Allowlist);
         }
         co_return co_await write_policy(std::move(req), workflow::AccessList::Allowlist);
     }
@@ -148,7 +149,7 @@ namespace controllers {
         drogon::HttpRequestPtr req
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
         if (req->method() == drogon::Get) {
-            co_return policy_response(*drogon::app().getPlugin<AssistantBot>()->Access()->Current(), workflow::AccessList::Blacklist);
+            co_return policy_response(*drogon::app().getPlugin<app::Application>()->Bot().Access()->Current(), workflow::AccessList::Blacklist);
         }
         co_return co_await write_policy(std::move(req), workflow::AccessList::Blacklist);
     }
@@ -193,7 +194,7 @@ namespace controllers {
             if (!friends) {
                 co_return json_error("could not read friends from NapCat", drogon::k502BadGateway);
             }
-            auto const policy{ drogon::app().getPlugin<AssistantBot>()->Access()->Current() };
+            auto const policy{ drogon::app().getPlugin<app::Application>()->Bot().Access()->Current() };
             Json::Value body{ Json::objectValue };
             body["friends"] = Json::Value{ Json::arrayValue };
             for (auto const& info : *friends) {

@@ -9,6 +9,7 @@
 
 #include <drogon/drogon.h>
 
+#include "application.hpp"
 #include "servers/runtime_state.hpp"
 
 namespace controllers {
@@ -43,7 +44,7 @@ namespace controllers {
         drogon::HttpRequestPtr /*req*/
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
         try {
-            co_return drogon::HttpResponse::newHttpJsonResponse(co_await drogon::app().getPlugin<admin::Runtime>()->Status());
+            co_return drogon::HttpResponse::newHttpJsonResponse(co_await drogon::app().getPlugin<app::Application>()->Runtime().Status());
         } catch (std::exception const& error) {
             LOG_ERROR << "Reading administrative status failed: " << error.what();
             co_return json_error("could not read runtime status", drogon::k500InternalServerError);
@@ -59,7 +60,7 @@ namespace controllers {
         drogon::HttpRequestPtr /*req*/
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
         Json::Value body{ Json::objectValue };
-        body["paused"] = drogon::app().getPlugin<admin::Runtime>()->Paused();
+        body["paused"] = drogon::app().getPlugin<app::Application>()->Runtime().Paused();
         co_return drogon::HttpResponse::newHttpJsonResponse(body);
     }
 
@@ -75,9 +76,9 @@ namespace controllers {
         if (body == nullptr || !body->isObject() || !body->isMember("paused") || !(*body)["paused"].isBool()) {
             co_return json_error("body must be an object with a boolean paused field", drogon::k400BadRequest);
         }
-        drogon::app().getPlugin<admin::Runtime>()->SetPaused((*body)["paused"].asBool());
+        drogon::app().getPlugin<app::Application>()->Runtime().SetPaused((*body)["paused"].asBool());
         Json::Value response{ Json::objectValue };
-        response["paused"] = drogon::app().getPlugin<admin::Runtime>()->Paused();
+        response["paused"] = drogon::app().getPlugin<app::Application>()->Runtime().Paused();
         co_return drogon::HttpResponse::newHttpJsonResponse(response);
     }
 
@@ -89,7 +90,7 @@ namespace controllers {
     auto RuntimeController::ProcessMetrics(
         drogon::HttpRequestPtr /*req*/
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
-        co_return drogon::HttpResponse::newHttpJsonResponse(drogon::app().getPlugin<admin::Runtime>()->ProcessMetrics());
+        co_return drogon::HttpResponse::newHttpJsonResponse(drogon::app().getPlugin<app::Application>()->Runtime().ProcessMetrics());
     }
 
 } // namespace controllers

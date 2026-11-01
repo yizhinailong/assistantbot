@@ -4,6 +4,7 @@
  */
 #include "controllers/admin/assets.hpp"
 
+#include "application.hpp"
 #include "servers/http_helpers.hpp"
 #include "servers/http_traces.hpp"
 #include "storage/database.hpp"
@@ -100,7 +101,7 @@ namespace controllers {
         drogon::HttpRequestPtr req
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
         try {
-            auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
+            auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
             if (req->method() == drogon::Post) {
                 auto const body{ req->getJsonObject() };
                 if (!body || !(*body)["data_url"].isString() || !(*body)["revision"].isString()) {

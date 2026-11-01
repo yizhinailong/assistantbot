@@ -5,6 +5,7 @@
 #include <drogon/drogon_test.h>
 
 #include "admin_support.hpp"
+#include "application.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
 #include "storage/database.hpp"
 #include "storage/messages.hpp"
@@ -21,7 +22,7 @@ DROGON_TEST(SessionRoutesRequireAuthenticationAndValidateIdentifiersAndCursors) 
     for (auto const* query : { "limit=0", "limit=201", "limit=", "before=0", "after=-1", "before=3&after=0", "after=9223372036854775808" }) {
         CHECK(test_support::request_admin(std::string{ "/api/admin/sessions/42/messages?" } + query)->statusCode() == drogon::k400BadRequest);
     }
-    auto const chat{ drogon::app().getPlugin<controllers::AssistantBot>()->Chat() };
+    auto const chat{ drogon::app().getPlugin<app::Application>()->Bot().Chat() };
     auto const before{ chat->SessionCount() };
     CHECK(test_support::request_admin("/api/admin/sessions/999999")->statusCode() == drogon::k404NotFound);
     CHECK(test_support::request_admin("/api/admin/sessions/999999/reset", drogon::Post)->statusCode() == drogon::k404NotFound);
@@ -31,7 +32,7 @@ DROGON_TEST(SessionRoutesRequireAuthenticationAndValidateIdentifiersAndCursors) 
 }
 
 DROGON_TEST(SessionListIncludesStoredPeersAndResetPreservesChatRecords) {
-    auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
+    auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
     auto const saved{ drogon::sync_wait(storage::append_message(db, {
                                                                         .timestamp = 100,
                                                                         .user_id = 9007199254740993LL,
@@ -54,7 +55,7 @@ DROGON_TEST(SessionListIncludesStoredPeersAndResetPreservesChatRecords) {
     CHECK(reset["nickname"] == "重启前好友");
     CHECK(test_support::success(test_support::request_admin("/api/admin/sessions/9007199254740993/messages?limit=1"))["messages"][0] == saved);
 
-    auto const chat{ drogon::app().getPlugin<controllers::AssistantBot>()->Chat() };
+    auto const chat{ drogon::app().getPlugin<app::Application>()->Bot().Chat() };
     drogon::sync_wait(chat->Observe({ .self_id = 1, .user_id = 77, .nickname = "在线好友" }, "observed", {}));
     auto const live{ test_support::success(test_support::request_admin("/api/admin/sessions/77")) };
     CHECK(live["nickname"] == "在线好友");
@@ -63,7 +64,7 @@ DROGON_TEST(SessionListIncludesStoredPeersAndResetPreservesChatRecords) {
 }
 
 DROGON_TEST(SessionStorageFailuresReturnJsonErrors) {
-    auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
+    auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
     db->execSqlSync("ALTER TABLE chat_messages RENAME TO unavailable_messages");
     for (auto const* path : { "/api/admin/sessions", "/api/admin/sessions/42", "/api/admin/sessions/42/messages" }) {
         auto const response{ test_support::request_admin(path) };

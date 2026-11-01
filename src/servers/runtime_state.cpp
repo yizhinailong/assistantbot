@@ -5,17 +5,12 @@
 #include "servers/runtime_state.hpp"
 
 #include <chrono>
-#include <stdexcept>
 #include <tuple>
 #include <utility>
 
 #include <drogon/drogon.h>
 
-#include <drogon_openai/openai_client.hpp>
-
 #include "controllers/onebot/assistant_bot.hpp"
-#include "servers/http_traces.hpp"
-#include "storage/database.hpp"
 #include "storage/usage.hpp"
 #include "workflow/bot_settings.hpp"
 
@@ -39,20 +34,21 @@ namespace admin {
 
     /**
      * @brief Bind dependencies, record startup, and start process sampling.
-     * @param config Plugin config; currently unused.
-     * @throws std::invalid_argument If a required dependency is missing.
+     * @param bot Initialized bot service.
+     * @param onebot Client used for runtime OneBot queries.
+     * @param model Default model name.
+     * @param database Opened and migrated SQLite client.
      */
-    auto Runtime::initAndStart(Json::Value const& /*config*/) -> void {
-        m_bot = drogon::app().getPlugin<controllers::AssistantBot>();
-        auto* const onebot{ drogon::app().getPlugin<drogon_onebot::OneBotClient>() };
-        auto* const openai{ drogon::app().getPlugin<drogon_openai::OpenAIClient>() };
-        auto* const database{ drogon::app().getPlugin<storage::Database>() };
-        if (m_bot == nullptr || onebot == nullptr || openai == nullptr || database == nullptr) {
-            throw std::invalid_argument{ "admin::Runtime: controllers::AssistantBot, drogon_onebot::OneBotClient, drogon_openai::OpenAIClient, and storage::Database must be loaded and listed under dependencies" };
-        }
-        m_database = database->Client();
-        m_onebot = admin::traced_onebot();
-        m_model = openai->Config().model;
+    auto Runtime::Start(
+        controllers::AssistantBot& bot,
+        drogon_onebot::OneBot onebot,
+        std::string model,
+        drogon::orm::DbClientPtr database
+    ) -> void {
+        m_bot = &bot;
+        m_database = std::move(database);
+        m_onebot = std::move(onebot);
+        m_model = std::move(model);
         m_started_at = std::chrono::duration_cast<std::chrono::seconds>(
                            std::chrono::system_clock::now().time_since_epoch()
         )
@@ -71,7 +67,7 @@ namespace admin {
     /**
      * @brief Invalidate the process sampler and release shared state.
      */
-    auto Runtime::shutdown() -> void {
+    auto Runtime::Stop() -> void {
         if (m_loop != nullptr && m_timer != trantor::InvalidTimerId) {
             m_loop->invalidateTimer(m_timer);
         }
@@ -79,6 +75,8 @@ namespace admin {
         m_loop = nullptr;
         m_state.reset();
         m_bot = nullptr;
+        m_database.reset();
+        m_model.clear();
     }
 
     /**

@@ -4,6 +4,7 @@
  */
 #include "controllers/admin/memory.hpp"
 
+#include "application.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
 #include "servers/http_helpers.hpp"
 #include "storage/database.hpp"
@@ -80,7 +81,7 @@ namespace controllers {
         try {
             static_cast<void>(document_key(kind));
             Json::Value body{};
-            body["records"] = co_await storage::feature_records(drogon::app().getPlugin<storage::Database>()->Client(), kind);
+            body["records"] = co_await storage::feature_records(drogon::app().getPlugin<app::Application>()->Database().Client(), kind);
             co_return drogon::HttpResponse::newHttpJsonResponse(body);
         } catch (std::exception const& error) {
             co_return failure(error);
@@ -101,7 +102,7 @@ namespace controllers {
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
         try {
             key = document_key(kind, key);
-            auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
+            auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
             if (req->method() == drogon::Put) {
                 auto const body{ req->getJsonObject() };
                 if (!body || !(*body)["revision"].isString()) {
@@ -139,7 +140,7 @@ namespace controllers {
         drogon::HttpRequestPtr req
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
         try {
-            auto const plugin{ drogon::app().getPlugin<AssistantBot>() };
+            auto const plugin{ &drogon::app().getPlugin<app::Application>()->Bot() };
             if (req->method() == drogon::Post) {
                 auto const body{ req->getJsonObject() };
                 if (!body) {
@@ -152,7 +153,7 @@ namespace controllers {
             if (req->getParameters().contains("session")) {
                 session = workflow::parse_conversation(req->getParameter("session"));
             }
-            auto const entries{ co_await storage::memories(drogon::app().getPlugin<storage::Database>()->Client(), session, static_cast<int>(admin::query_integer(req, "limit", 200, 1, 2000))) };
+            auto const entries{ co_await storage::memories(drogon::app().getPlugin<app::Application>()->Database().Client(), session, static_cast<int>(admin::query_integer(req, "limit", 200, 1, 2000))) };
             Json::Value body{};
             body["memories"] = Json::Value{ Json::arrayValue };
             for (auto const& entry : entries) {
@@ -177,7 +178,7 @@ namespace controllers {
         try {
             auto const number{ admin::decimal(id, 1) };
             if (req->method() == drogon::Delete) {
-                if (!(co_await storage::delete_memory(drogon::app().getPlugin<storage::Database>()->Client(), number, {}, admin::query_integer(req, "revision", 0, 1)))) {
+                if (!(co_await storage::delete_memory(drogon::app().getPlugin<app::Application>()->Database().Client(), number, {}, admin::query_integer(req, "revision", 0, 1)))) {
                     co_return admin::json_error("memory changed; refresh before deleting", drogon::k409Conflict);
                 }
                 Json::Value body{};
@@ -189,7 +190,7 @@ namespace controllers {
                 throw std::invalid_argument{ "expected session, content, and revision" };
             }
             auto const session{ memory_input(*body) };
-            auto const plugin{ drogon::app().getPlugin<AssistantBot>() };
+            auto const plugin{ &drogon::app().getPlugin<app::Application>()->Bot() };
             co_return drogon::HttpResponse::newHttpJsonResponse(public_memory(co_await plugin->Memory()->Save(*plugin->Features()->Current(), session, (*body)["content"].asString(), number, admin::decimal((*body)["revision"].asString(), 1))));
         } catch (std::exception const& error) {
             co_return failure(error);
@@ -209,7 +210,7 @@ namespace controllers {
             if (!body || !(*body)["session"].isString() || !(*body)["query"].isString() || (*body)["query"].asString().empty() || (*body)["query"].asString().size() > 8192) {
                 throw std::invalid_argument{ "expected session and bounded query" };
             }
-            auto const plugin{ drogon::app().getPlugin<AssistantBot>() };
+            auto const plugin{ &drogon::app().getPlugin<app::Application>()->Bot() };
             Json::Value result{};
             result["memories"] = co_await plugin->Memory()->Recall(*plugin->Features()->Current(), workflow::parse_conversation((*body)["session"].asString()), (*body)["query"].asString());
             co_return drogon::HttpResponse::newHttpJsonResponse(result);

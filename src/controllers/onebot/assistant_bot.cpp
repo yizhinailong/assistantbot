@@ -1,6 +1,6 @@
 /**
  * @file assistant_bot.cpp
- * @brief Implement the plugin that turns the OneBot and OpenAI plugins into a private chat bot.
+ * @brief Implement the service that turns the OneBot and OpenAI plugins into a private chat bot.
  */
 #include "controllers/onebot/assistant_bot.hpp"
 
@@ -14,7 +14,6 @@
 
 #include "common/text.hpp"
 #include "servers/http_traces.hpp"
-#include "storage/database.hpp"
 #include "workflow/access_control.hpp"
 #include "workflow/agent.hpp"
 #include "workflow/bot_settings.hpp"
@@ -167,28 +166,29 @@ namespace controllers {
      * all but private friend messages allowed by the access policy. It answers `HELP_COMMAND`,
      * `RESET_COMMAND`, and a message without text itself, and passes any other text to
      * `workflow::PrivateChat::Chat`.
-     * @param config The plugin's `config` object.
-     * @throws std::invalid_argument If the config, saved overrides, or access policy are invalid, or a
-     * dependency is not loaded.
+     * @param config Application `bot` settings.
+     * @param onebot Initialized OneBot plugin for message registration.
+     * @param openai Initialized OpenAI plugin for model clients.
+     * @param database Opened and migrated SQLite client.
+     * @throws std::invalid_argument If the config, saved overrides, or access policy are invalid.
      * @throws std::runtime_error If the saved overrides cannot be read.
      */
-    auto AssistantBot::initAndStart(Json::Value const& config) -> void {
-        auto* const onebot{ drogon::app().getPlugin<drogon_onebot::OneBotClient>() };
-        auto* const openai{ drogon::app().getPlugin<drogon_openai::OpenAIClient>() };
-        auto* const database{ drogon::app().getPlugin<storage::Database>() };
-        if (onebot == nullptr || openai == nullptr || database == nullptr) {
-            throw std::invalid_argument{ "controllers::AssistantBot: drogon_onebot::OneBotClient, drogon_openai::OpenAIClient, and storage::Database must be loaded and listed under dependencies" };
-        }
+    auto AssistantBot::Start(
+        Json::Value const& config,
+        drogon_onebot::OneBotClient& onebot,
+        drogon_openai::OpenAIClient& openai,
+        drogon::orm::DbClientPtr database
+    ) -> void {
 
         // Drogon starts the plugins before any event loop runs, so reading the database blocks safely.
-        m_features = std::make_shared<workflow::FeatureSettings>(database->Client());
-        m_models = std::make_shared<workflow::ModelRoles>(openai->NewOpenAIClient(), database->Client(), openai->Config().model);
-        m_memory = std::make_shared<workflow::MemoryService>(database->Client(), m_models);
-        m_settings = std::make_shared<workflow::BotSettings>(config, database->Client());
-        m_chat = std::make_shared<workflow::PrivateChat>(m_settings, admin::traced_onebot(), admin::traced_model(openai->NewOpenAIClient()), database->Client(), openai->Config().model);
+        m_features = std::make_shared<workflow::FeatureSettings>(database);
+        m_models = std::make_shared<workflow::ModelRoles>(openai.NewOpenAIClient(), database, openai.Config().model);
+        m_memory = std::make_shared<workflow::MemoryService>(database, m_models);
+        m_settings = std::make_shared<workflow::BotSettings>(config, database);
+        m_chat = std::make_shared<workflow::PrivateChat>(m_settings, admin::traced_onebot(), admin::traced_model(openai.NewOpenAIClient()), database, openai.Config().model);
         m_paused = std::make_shared<std::atomic_bool>(false);
-        m_access = std::make_shared<workflow::AccessControl>(database->Client());
-        m_tasks = std::make_shared<workflow::ScheduledTasks>(database->Client(), [chat = std::weak_ptr{ m_chat }, paused = m_paused, access = m_access, features = m_features](workflow::Peer peer, std::string content) -> drogon::Task<> {
+        m_access = std::make_shared<workflow::AccessControl>(database);
+        m_tasks = std::make_shared<workflow::ScheduledTasks>(database, [chat = std::weak_ptr{ m_chat }, paused = m_paused, access = m_access, features = m_features](workflow::Peer peer, std::string content) -> drogon::Task<> {
             auto workflow{ chat.lock() };
             if (!workflow || paused->load()) {
                 throw std::runtime_error{ "bot is paused or stopped" };
@@ -210,9 +210,9 @@ namespace controllers {
             co_await workflow->Observe(peer, prompt, {});
             co_await workflow->Chat(peer, std::move(prompt));
         });
-        m_chat->SetAgent(std::make_shared<workflow::AgentRuntime>(m_features, m_models, m_memory, m_tasks, database->Client(), admin::traced_onebot()));
+        m_chat->SetAgent(std::make_shared<workflow::AgentRuntime>(m_features, m_models, m_memory, m_tasks, database, admin::traced_onebot()));
         m_tasks->Start();
-        onebot->OnMessage([chat = m_chat, paused = m_paused, access = m_access, features = m_features](drogon_onebot::MessageEvent event) -> drogon::Task<> {
+        onebot.OnMessage([chat = m_chat, paused = m_paused, access = m_access, features = m_features](drogon_onebot::MessageEvent event) -> drogon::Task<> {
             co_await handle_message(chat, paused, access, features, std::move(event));
         });
     }
@@ -253,11 +253,12 @@ namespace controllers {
     }
 
     /**
-     * @brief Drop the plugin's reference to the handler state.
+     * @brief Drop the service's reference to the handler state.
      *
      * Handlers that are still running keep their own reference until they end.
      */
-    auto AssistantBot::shutdown() -> void {
+    auto AssistantBot::Stop() -> void {
+        SetPaused(true);
         if (m_tasks) {
             m_tasks->Stop();
         }
@@ -273,7 +274,7 @@ namespace controllers {
 
     /**
      * @brief Get the persistent reply settings shared with the workflow.
-     * @return Settings manager during the plugin lifetime.
+     * @return Settings manager during the application lifetime.
      */
     auto AssistantBot::Settings() const -> std::shared_ptr<workflow::BotSettings> {
         return m_settings;
@@ -281,7 +282,7 @@ namespace controllers {
 
     /**
      * @brief Get the shared chat workflow for authenticated session inspection and reset.
-     * @return Workflow during the plugin lifetime.
+     * @return Workflow during the application lifetime.
      */
     auto AssistantBot::Chat() const -> std::shared_ptr<workflow::PrivateChat> {
         return m_chat;
@@ -289,7 +290,7 @@ namespace controllers {
 
     /**
      * @brief Get the immutable optional-feature settings manager.
-     * @return Settings manager during the plugin lifetime.
+     * @return Settings manager during the application lifetime.
      */
     auto AssistantBot::Features() const -> std::shared_ptr<workflow::FeatureSettings> {
         return m_features;
@@ -297,7 +298,7 @@ namespace controllers {
 
     /**
      * @brief Get the persistent memory service used by the bot and admin endpoints.
-     * @return Memory service during plugin lifetime.
+     * @return Memory service during application lifetime.
      */
     auto AssistantBot::Memory() const -> std::shared_ptr<workflow::MemoryService> {
         return m_memory;
@@ -305,7 +306,7 @@ namespace controllers {
 
     /**
      * @brief Get the durable conversation reminder service.
-     * @return Task service during plugin lifetime.
+     * @return Task service during application lifetime.
      */
     auto AssistantBot::Tasks() const -> std::shared_ptr<workflow::ScheduledTasks> {
         return m_tasks;

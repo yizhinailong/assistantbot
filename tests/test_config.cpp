@@ -1,6 +1,6 @@
 /**
  * @file test_config.cpp
- * @brief Check how `parse_bot_config` reads and validates the plugin config.
+ * @brief Check how `parse_bot_config` reads and validates the bot configuration.
  *
  * Runs without the app. Also parses the bot entries of the tracked configuration files.
  */
@@ -20,7 +20,7 @@ namespace {
 
     /**
      * @brief Parse a config and report how it was rejected.
-     * @param config Plugin config to parse.
+     * @param config Bot settings to parse.
      * @return The `std::invalid_argument` message, or `(accepted)` if nothing was thrown.
      */
     auto rejection(Json::Value const& config) -> std::string {
@@ -45,13 +45,13 @@ namespace {
     }
 
     /**
-     * @brief Find the `controllers::AssistantBot` entry of a configuration file.
+     * @brief Find the `app::Application` entry of a configuration file.
      * @param path File to read.
      * @return The entry, with its `name`, `dependencies`, and `config`; null when absent.
      */
-    auto bot_entry(char const* path) -> Json::Value {
+    auto application_entry(char const* path) -> Json::Value {
         for (auto const& plugin : test_support::read_json(path)["plugins"]) {
-            if (plugin["name"].asString() == "controllers::AssistantBot") {
+            if (plugin["name"].asString() == "app::Application") {
                 return plugin;
             }
         }
@@ -111,15 +111,17 @@ DROGON_TEST(RejectsInvalidValues) {
 
 DROGON_TEST(TrackedConfigsParse) {
     for (auto const* path : { test_support::CONFIG_PATH, APP_CONFIG_PATH }) {
-        auto const entry{ bot_entry(path) };
+        auto const entry{ application_entry(path) };
         REQUIRE(entry.isObject());
-        CHECK(rejection(entry["config"]) == "(accepted)");
+        CHECK(test_support::read_json(path)["plugins"].size() == 3);
+        CHECK(entry["config"]["admin_token_env"].isString());
+        CHECK(entry["config"]["data_dir"].isString());
+        CHECK(rejection(entry["config"]["bot"]) == "(accepted)");
 
         // Drogon initializes the dependencies first, so the plugin can use them.
         Json::Value dependencies{ Json::arrayValue };
         dependencies.append("drogon_onebot::OneBotClient");
         dependencies.append("drogon_openai::OpenAIClient");
-        dependencies.append("storage::Database");
         CHECK(entry["dependencies"] == dependencies);
     }
 }

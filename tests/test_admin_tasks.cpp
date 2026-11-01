@@ -5,6 +5,7 @@
 #include <thread>
 
 #include "admin_support.hpp"
+#include "application.hpp"
 #include "common/time.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
 #include "storage/database.hpp"
@@ -25,7 +26,7 @@ DROGON_TEST(TaskApiValidatesAndCancelsDurableReminders) {
     auto const tasks{ test_support::request_admin("/api/admin/tasks?session=-44001")->getJsonObject() };
     REQUIRE(tasks);
     CHECK((*tasks)["tasks"].size() == 1);
-    auto service{ drogon::app().getPlugin<controllers::AssistantBot>()->Tasks() };
+    auto service{ drogon::app().getPlugin<app::Application>()->Bot().Tasks() };
     CHECK(!drogon::sync_wait(service->Cancel(std::stoll(id), 44001)));
     CHECK(test_support::request_admin("/api/admin/tasks/" + id + "/cancel", drogon::Post)->statusCode() == drogon::k200OK);
     CHECK(test_support::request_admin("/api/admin/tasks/" + id + "/cancel", drogon::Post)->statusCode() == drogon::k409Conflict);
@@ -35,10 +36,10 @@ DROGON_TEST(TaskApiValidatesAndCancelsDurableReminders) {
 }
 
 DROGON_TEST(DueTasksRecheckPauseAndRecordFailureOnce) {
-    auto* bot{ drogon::app().getPlugin<controllers::AssistantBot>() };
+    auto* bot{ &drogon::app().getPlugin<app::Application>()->Bot() };
     bot->SetPaused(true);
     auto task{ drogon::sync_wait(bot->Tasks()->Create({ .user_id = 44002 }, common::unix_seconds() + 3600, "must not send", false)) };
-    auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
+    auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
     drogon::sync_wait(storage::query(db, "UPDATE scheduled_tasks SET due_at = ? WHERE id = ?", common::unix_seconds() - 1, std::stoll(task["id"].asString())));
     // Create wakes polling after the test moves the prior deadline into the past.
     auto wake{ drogon::sync_wait(bot->Tasks()->Create({ .user_id = 44003 }, common::unix_seconds() + 3600, "wake", false)) };

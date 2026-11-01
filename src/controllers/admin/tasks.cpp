@@ -4,6 +4,7 @@
  */
 #include "controllers/admin/tasks.hpp"
 
+#include "application.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
 #include "servers/http_helpers.hpp"
 #include "workflow/scheduled_tasks.hpp"
@@ -18,7 +19,7 @@ namespace controllers {
         drogon::HttpRequestPtr req
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
         try {
-            auto const tasks{ drogon::app().getPlugin<AssistantBot>()->Tasks() };
+            auto const tasks{ drogon::app().getPlugin<app::Application>()->Bot().Tasks() };
             if (req->method() == drogon::Post) {
                 auto const body{ req->getJsonObject() };
                 if (!body || !(*body)["session"].isString() || !(*body)["due_at"].isInt64() || !(*body)["content"].isString() || (!(*body)["daily"].isNull() && !(*body)["daily"].isBool())) {
@@ -56,7 +57,7 @@ namespace controllers {
         std::string id
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
         try {
-            if (!(co_await drogon::app().getPlugin<AssistantBot>()->Tasks()->Cancel(admin::decimal(id, 1)))) {
+            if (!(co_await drogon::app().getPlugin<app::Application>()->Bot().Tasks()->Cancel(admin::decimal(id, 1)))) {
                 co_return admin::json_error("task is absent or has already started", drogon::k409Conflict);
             }
             Json::Value result{};

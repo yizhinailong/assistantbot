@@ -3,6 +3,7 @@
  * @brief Verify authenticated custom tool revisions and harmless Lua test execution.
  */
 #include "admin_support.hpp"
+#include "application.hpp"
 #include "common/json.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
 #include "workflow/feature_settings.hpp"
@@ -38,7 +39,7 @@ DROGON_TEST(McpProbeUsesSavedConfigAndRequiresAuthentication) {
     server["name"] = "probe";
     server["url"] = std::string{ test_support::SERVER_URL } + "/probe";
     config["servers"].append(server);
-    drogon::sync_wait(drogon::app().getPlugin<controllers::AssistantBot>()->Features()->Update("mcp", config));
+    drogon::sync_wait(drogon::app().getPlugin<app::Application>()->Bot().Features()->Update("mcp", config));
     auto response{ test_support::request_admin("/api/admin/mcp/probe/test", drogon::Post) };
     REQUIRE(response->statusCode() == drogon::k200OK);
     CHECK((*response->getJsonObject())["tools"].size() == 1);

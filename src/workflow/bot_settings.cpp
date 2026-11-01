@@ -34,7 +34,7 @@ namespace workflow {
 
         /**
          * @brief Validate overrides and build the settings they give.
-         * @param defaults Plugin config from config.json, as an object.
+         * @param defaults Application bot defaults from config.json, as an object.
          * @param overrides Overrides to apply on top of it.
          * @return The settings, as a snapshot.
          * @throws std::invalid_argument If the overrides have a wrong key or value.
@@ -57,8 +57,8 @@ namespace workflow {
      * @brief Read the saved overrides and build the first snapshot.
      *
      * Blocks on the database: call it only on a thread that runs no event loop, such as
-     * the one that runs `initAndStart`.
-     * @param defaults Plugin config from config.json; null when it gives none.
+     * the one that runs `app::Application::initAndStart`.
+     * @param defaults Application bot defaults from config.json; null when it gives none.
      * @param db Database with the settings table.
      * @throws std::invalid_argument If `defaults` is invalid, with `parse_bot_config()`'s
      * message, or if the saved overrides are, with that message and a note that they come

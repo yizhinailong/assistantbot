@@ -1,6 +1,6 @@
 /**
  * @file test_storage.cpp
- * @brief Check the database: the plugin, opening and migrating, and the settings rows.
+ * @brief Check the database service, opening and migrating, and the settings rows.
  *
  * The app runs with `tests/config.json`, so `storage::Database` opens `test_support::DATA_DIR`.
  * The other tests open databases of their own in fresh temporary directories.
@@ -16,6 +16,7 @@
 #include <drogon/utils/coroutine.h>
 #include <json/json.h>
 
+#include "application.hpp"
 #include "storage/database.hpp"
 #include "storage/query.hpp"
 #include "storage/schema.hpp"
@@ -25,14 +26,14 @@
 namespace {
 
     /**
-     * @brief Try a config on a plugin that is not registered with the app.
-     * @param config Plugin config to pass to `initAndStart`.
+     * @brief Try a config on an independent database service.
+     * @param config Configuration to pass to `Database::Start`.
      * @return The `std::invalid_argument` message, or `(accepted)` if nothing was thrown.
      */
     auto rejection(Json::Value const& config) -> std::string {
         try {
-            storage::Database plugin{};
-            plugin.initAndStart(config);
+            storage::Database service{};
+            service.Start(config);
         } catch (std::invalid_argument const& error) {
             return error.what();
         }
@@ -78,16 +79,16 @@ namespace {
 
 } // namespace
 
-DROGON_TEST(PluginOpensDataDir) {
-    auto* const plugin{ drogon::app().getPlugin<storage::Database>() };
-    REQUIRE(plugin != nullptr);
-    auto const client{ plugin->Client() };
+DROGON_TEST(ApplicationOpensDataDir) {
+    auto* const application{ drogon::app().getPlugin<app::Application>() };
+    REQUIRE(application != nullptr);
+    auto const client{ application->Database().Client() };
     REQUIRE(client != nullptr);
     CHECK(std::filesystem::is_regular_file(std::filesystem::path{ test_support::DATA_DIR } / storage::DATABASE_FILE));
     CHECK(storage::schema_version(*client) == storage::latest_schema_version());
 }
 
-DROGON_TEST(PluginRejectsInvalidConfig) {
+DROGON_TEST(DatabaseRejectsInvalidConfig) {
     CHECK(rejection(Json::Value{ Json::arrayValue }) == "storage::Database: config must be an object");
 
     Json::Value config{ Json::objectValue };

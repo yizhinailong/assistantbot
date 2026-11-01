@@ -8,10 +8,10 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <drogon/HttpRequest.h>
 #include <drogon/WebSocketConnection.h>
-#include <drogon/plugins/Plugin.h>
 #include <json/value.h>
 
 namespace admin {
@@ -21,7 +21,7 @@ namespace admin {
     /**
      * @brief Authenticate the administrative API with an environment secret and opaque sessions.
      */
-    class Auth : public drogon::Plugin<Auth> {
+    class Auth {
     private:
         std::string m_token;                                                               ///< Secret loaded once, never returned or logged.
         mutable std::mutex m_mutex;                                                        ///< Guards the secret and session registry.
@@ -30,14 +30,15 @@ namespace admin {
     public:
         /**
          * @brief Load admin_token_env and register the administrative request guard.
-         * @param config Object containing the environment variable name.
+         * @param config Application configuration containing the environment variable name.
+         * @param secrets Additional initialized client credentials to redact.
          * @throws std::invalid_argument If the name or secret is missing or empty.
          */
-        auto initAndStart(Json::Value const& config) -> void override;
+        auto Start(Json::Value const& config, std::vector<std::string> secrets = {}) -> void;
         /**
          * @brief Revoke all sessions on shutdown.
          */
-        auto shutdown() -> void override;
+        auto Stop() -> void;
         /**
          * @brief Check a session against its absolute twelve-hour expiry.
          * @param session Opaque cookie value.

@@ -140,15 +140,15 @@ DROGON_TEST(AuthProtectsUnknownRoutesAndWebSocketUpgrades) {
 
 DROGON_TEST(AuthConfigurationRequiresEnvironmentSecret) {
     admin::Auth auth{};
-    CHECK_THROWS_AS(auth.initAndStart(Json::Value{}), std::invalid_argument);
+    CHECK_THROWS_AS(auth.Start(Json::Value{}), std::invalid_argument);
     Json::Value config{ Json::objectValue };
     config["admin_token_env"] = "";
-    CHECK_THROWS_AS(auth.initAndStart(config), std::invalid_argument);
+    CHECK_THROWS_AS(auth.Start(config), std::invalid_argument);
     config["admin_token_env"] = "ASSISTANTBOT_TEST_EMPTY_ADMIN_TOKEN";
     test_support::set_env("ASSISTANTBOT_TEST_EMPTY_ADMIN_TOKEN", "");
-    CHECK_THROWS_AS(auth.initAndStart(config), std::invalid_argument);
+    CHECK_THROWS_AS(auth.Start(config), std::invalid_argument);
     config["admin_token_env"] = "ASSISTANTBOT_TEST_UNSET_ADMIN_TOKEN";
-    CHECK_THROWS_AS(auth.initAndStart(config), std::invalid_argument);
+    CHECK_THROWS_AS(auth.Start(config), std::invalid_argument);
     CHECK(admin::constant_time_equal("same", "same"));
     CHECK(!admin::constant_time_equal("same", "sand"));
     CHECK(!admin::constant_time_equal("same", "same-longer"));

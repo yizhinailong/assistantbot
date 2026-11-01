@@ -19,12 +19,6 @@
   ],
   "plugins": [
     {
-      "name": "admin::Auth",
-      "config": {
-        "admin_token_env": "ASSISTANTBOT_TEST_ADMIN_TOKEN"
-      }
-    },
-    {
       "name": "drogon_onebot::OneBotClient",
       "config": {
         "base_url": "http://127.0.0.1:18082/napcat",
@@ -40,34 +34,22 @@
       }
     },
     {
-      "name": "storage::Database",
-      "config": {
-        "data_dir": "/tmp/assistantbot-test/data"
-      }
-    },
-    {
-      "name": "controllers::AssistantBot",
+      "name": "app::Application",
       "dependencies": [
         "drogon_onebot::OneBotClient",
-        "drogon_openai::OpenAIClient",
-        "storage::Database"
+        "drogon_openai::OpenAIClient"
       ],
       "config": {
-        "system_prompt": "You are a test assistant.",
-        "history_turns": 2,
-        "request_timeout": 5,
-        "max_reply_chars": 100,
-        "model": ""
+        "admin_token_env": "ASSISTANTBOT_TEST_ADMIN_TOKEN",
+        "data_dir": "/tmp/assistantbot-test/data",
+        "bot": {
+          "system_prompt": "You are a test assistant.",
+          "history_turns": 2,
+          "request_timeout": 5,
+          "max_reply_chars": 100,
+          "model": ""
+        }
       }
-    },
-    {
-      "name": "admin::Runtime",
-      "dependencies": [
-        "controllers::AssistantBot",
-        "drogon_onebot::OneBotClient",
-        "drogon_openai::OpenAIClient",
-        "storage::Database"
-      ]
     }
   ]
 }

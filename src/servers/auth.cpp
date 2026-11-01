@@ -15,9 +15,6 @@
 #include <drogon/drogon.h>
 #include <trantor/utils/Utilities.h>
 
-#include <drogon_onebot/onebot_client.hpp>
-#include <drogon_openai/openai_client.hpp>
-
 #include "servers/http_traces.hpp"
 #include "servers/live_events.hpp"
 
@@ -59,10 +56,11 @@ namespace admin {
 
     /**
      * @brief Load admin_token_env and register the administrative request guard.
-     * @param config Object containing the environment variable name.
+     * @param config Application configuration containing the environment variable name.
+     * @param secrets Additional initialized client credentials to redact.
      * @throws std::invalid_argument If the name or secret is missing or empty.
      */
-    auto Auth::initAndStart(Json::Value const& config) -> void {
+    auto Auth::Start(Json::Value const& config, std::vector<std::string> secrets) -> void {
         if (!config.isObject() || !config["admin_token_env"].isString() || config["admin_token_env"].asString().empty()) {
             throw std::invalid_argument{ "admin::Auth: admin_token_env must be a non-empty environment variable name" };
         }
@@ -70,21 +68,13 @@ namespace admin {
         if (m_token.empty() || m_token.size() > 4096) {
             throw std::invalid_argument{ "admin::Auth: the environment variable named by admin_token_env must contain 1 to 4096 bytes" };
         }
-        auto secrets{ std::vector<std::string>{ m_token } };
+        secrets.push_back(m_token);
         drogon::app().registerBeginningAdvice([secrets = std::move(secrets)]() mutable {
-            if (auto const* onebot{ drogon::app().getPlugin<drogon_onebot::OneBotClient>() }) {
-                secrets.push_back(onebot->Config().access_token);
-                secrets.push_back(onebot->Config().secret);
-            }
-            if (auto const* openai{ drogon::app().getPlugin<drogon_openai::OpenAIClient>() }) {
-                secrets.push_back(openai->Config().api_key);
-                secrets.push_back(openai->Config().webhook_secret);
-            }
             configure_http_traces(secrets);
             start_live_events(std::move(secrets));
         });
         drogon::app().registerPreRoutingAdvice(
-            [](drogon::HttpRequestPtr const& request, drogon::AdviceCallback&& callback, drogon::AdviceChainCallback&& chain) {
+            [this](drogon::HttpRequestPtr const& request, drogon::AdviceCallback&& callback, drogon::AdviceChainCallback&& chain) {
                 auto const path{ request->path() };
                 auto normalized_path{ path };
                 std::ranges::transform(normalized_path, normalized_path.begin(), [](unsigned char character) { return static_cast<char>(std::tolower(character)); });
@@ -93,8 +83,7 @@ namespace admin {
                     chain();
                     return;
                 }
-                auto const* auth{ drogon::app().getPlugin<Auth>() };
-                if (auth != nullptr && auth->Authenticated(request->getCookie(ADMIN_SESSION_COOKIE))) {
+                if (Authenticated(request->getCookie(ADMIN_SESSION_COOKIE))) {
                     auto const origin{ request->getHeader("origin") };
                     auto const host{ request->getHeader("host") };
                     if (request->getHeader("upgrade") == "websocket" && !origin.empty() && origin != "http://" + host && origin != "https://" + host) {
@@ -131,7 +120,7 @@ namespace admin {
     /**
      * @brief Revoke all sessions on shutdown.
      */
-    auto Auth::shutdown() -> void {
+    auto Auth::Stop() -> void {
         {
             std::lock_guard lock{ m_mutex };
             m_sessions.clear();

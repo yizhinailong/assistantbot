@@ -1,6 +1,6 @@
 /**
  * @file bot_config.hpp
- * @brief Declare the settings of the `controllers::AssistantBot` plugin.
+ * @brief Declare the bot defaults from the application configuration.
  */
 #pragma once
 
@@ -37,7 +37,7 @@ namespace workflow {
     };
 
     /**
-     * @brief Settings of the private chat bot, read from the plugin's `config` in config.json.
+     * @brief Settings of the private chat bot, read from `app::Application`'s `config.bot`.
      */
     struct BotConfig {
         std::string system_prompt{ DEFAULT_SYSTEM_PROMPT }; ///< First message of every model request; empty sends none.
@@ -50,7 +50,7 @@ namespace workflow {
     };
 
     /**
-     * @brief Read and validate the plugin config.
+     * @brief Read and validate the application bot defaults.
      *
      * | Key | Required | Meaning |
      * | --- | --- | --- |
@@ -61,7 +61,7 @@ namespace workflow {
      * | `max_tokens` | No | Integer >= 1 or null; unset uses the endpoint's default |
      * | `max_reply_chars` | No | Integer >= 1, default 1500 |
      * | `model` | No | String; empty uses the model plugin default |
-     * @param config The plugin's `config` object; null when config.json gives none.
+     * @param config The application's `config.bot` object; null when config.json gives none.
      * @return Settings, with defaults for the keys that are absent.
      * @throws std::invalid_argument If `config` is not an object, or a key has the wrong type or
      * range. The message starts with `controllers::AssistantBot:` and names the key.

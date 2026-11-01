@@ -4,6 +4,7 @@
  */
 #include "controllers/admin/features.hpp"
 
+#include "application.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
 #include "servers/http_helpers.hpp"
 #include "servers/http_traces.hpp"
@@ -48,7 +49,7 @@ namespace controllers {
         std::string section
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
         try {
-            auto const settings{ drogon::app().getPlugin<AssistantBot>()->Features() };
+            auto const settings{ drogon::app().getPlugin<app::Application>()->Bot().Features() };
             if (req->method() == drogon::Put) {
                 auto const body{ req->getJsonObject() };
                 if (!body) {
@@ -84,7 +85,7 @@ namespace controllers {
         if (!groups) {
             co_return admin::json_error(groups.error().message, drogon::k502BadGateway);
         }
-        auto const settings{ drogon::app().getPlugin<AssistantBot>()->Features()->Describe("groups") };
+        auto const settings{ drogon::app().getPlugin<app::Application>()->Bot().Features()->Describe("groups") };
         Json::Value body{};
         body["revision"] = settings["revision"];
         body["groups"] = Json::Value{ Json::arrayValue };
@@ -124,7 +125,7 @@ namespace controllers {
             if (!body) {
                 throw std::invalid_argument{ "expected JSON request" };
             }
-            auto const settings{ drogon::app().getPlugin<AssistantBot>()->Features() };
+            auto const settings{ drogon::app().getPlugin<app::Application>()->Bot().Features() };
             auto const current{ settings->Current() };
             auto expected{ revision(*body) };
             if (!expected) {

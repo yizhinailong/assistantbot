@@ -20,12 +20,6 @@
   },
   "plugins": [
     {
-      "name": "admin::Auth",
-      "config": {
-        "admin_token_env": "ASSISTANTBOT_ADMIN_TOKEN"
-      }
-    },
-    {
       "name": "drogon_onebot::OneBotClient",
       "config": {
         "base_url": "http://127.0.0.1:3000",
@@ -43,34 +37,22 @@
       }
     },
     {
-      "name": "storage::Database",
-      "config": {
-        "data_dir": "data"
-      }
-    },
-    {
-      "name": "controllers::AssistantBot",
+      "name": "app::Application",
       "dependencies": [
         "drogon_onebot::OneBotClient",
-        "drogon_openai::OpenAIClient",
-        "storage::Database"
+        "drogon_openai::OpenAIClient"
       ],
       "config": {
-        "history_turns": 10,
-        "idle_reset_minutes": 30,
-        "request_timeout": 90,
-        "max_reply_chars": 1500,
-        "model": ""
+        "admin_token_env": "ASSISTANTBOT_ADMIN_TOKEN",
+        "data_dir": "data",
+        "bot": {
+          "history_turns": 10,
+          "idle_reset_minutes": 30,
+          "request_timeout": 90,
+          "max_reply_chars": 1500,
+          "model": ""
+        }
       }
-    },
-    {
-      "name": "admin::Runtime",
-      "dependencies": [
-        "controllers::AssistantBot",
-        "drogon_onebot::OneBotClient",
-        "drogon_openai::OpenAIClient",
-        "storage::Database"
-      ]
     }
   ]
 }

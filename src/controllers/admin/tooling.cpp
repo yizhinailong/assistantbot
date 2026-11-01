@@ -4,6 +4,7 @@
  */
 #include "controllers/admin/tooling.hpp"
 
+#include "application.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
 #include "servers/http_helpers.hpp"
 #include "storage/database.hpp"
@@ -37,7 +38,7 @@ namespace controllers {
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
         try {
             Json::Value result{};
-            result["tools"] = co_await storage::feature_records(drogon::app().getPlugin<storage::Database>()->Client(), "lua");
+            result["tools"] = co_await storage::feature_records(drogon::app().getPlugin<app::Application>()->Database().Client(), "lua");
             co_return drogon::HttpResponse::newHttpJsonResponse(result);
         } catch (std::exception const&) {
             co_return admin::json_error("could not read tools", drogon::k500InternalServerError);
@@ -55,7 +56,7 @@ namespace controllers {
         std::string name
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
         try {
-            auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
+            auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
             if (req->method() == drogon::Get) {
                 auto const records{ co_await storage::feature_records(db, "lua", name) };
                 if (records.empty()) {
@@ -136,7 +137,7 @@ namespace controllers {
         std::string name
     ) const -> drogon::Task<drogon::HttpResponsePtr> {
         try {
-            auto const snapshot{ drogon::app().getPlugin<AssistantBot>()->Features()->Current() };
+            auto const snapshot{ drogon::app().getPlugin<app::Application>()->Bot().Features()->Current() };
             for (auto const& server : (*snapshot)["mcp"]["servers"]) {
                 if (server["name"].asString() != name) {
                     continue;

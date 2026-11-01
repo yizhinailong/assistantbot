@@ -1,13 +1,12 @@
 /**
  * @file database.hpp
- * @brief Declare the plugin that opens the bot's SQLite database.
+ * @brief Declare the service that opens the bot's SQLite database.
  */
 #pragma once
 
 #include <filesystem>
 
 #include <drogon/orm/DbClient.h>
-#include <drogon/plugins/Plugin.h>
 #include <json/value.h>
 
 namespace storage {
@@ -21,7 +20,7 @@ namespace storage {
      * The client has one connection, so its statements run one at a time in the order they
      * are sent, on a thread of its own, so it needs none of the app's event loops. Blocks
      * until the migration ends: call it only on a thread that runs no event loop, such as
-     * the one that runs `initAndStart`.
+     * the one that runs `app::Application::initAndStart`.
      * @param data_dir Directory of `DATABASE_FILE`; a relative path resolves against the
      * working directory.
      * @return Client of the migrated database.
@@ -33,14 +32,13 @@ namespace storage {
     /**
      * @brief Open and migrate the bot's SQLite database, and share its client.
      *
-     * Register it in config.json before the plugins that use it, and list it under their
-     * `dependencies`, so that the database is ready when they start.
+     * `app::Application` starts this service before the bot and runtime services.
      *
      * | Key | Required | Meaning |
      * | --- | --- | --- |
      * | `data_dir` | No | Non-empty string, default `data`: directory of `DATABASE_FILE`, created when missing |
      */
-    class Database : public drogon::Plugin<Database> {
+    class Database {
     private:
         drogon::orm::DbClientPtr m_client; ///< Client from `open_database()`.
 
@@ -48,26 +46,25 @@ namespace storage {
         /**
          * @brief Read `data_dir`, then open and migrate the database there.
          *
-         * Drogon starts the plugins on the thread that calls `app().run()`, before any event
-         * loop runs, so blocking on the database here is safe.
-         * @param config The plugin's `config` object; null when config.json gives none.
+         * `app::Application` calls this before any event loop runs, so blocking is safe.
+         * @param config Application configuration containing an optional `data_dir`.
          * @throws std::invalid_argument If `config` is not an object, or `data_dir` is not a
          * non-empty string.
          * @throws std::filesystem::filesystem_error If the directory cannot be created.
          * @throws std::runtime_error If SQLite cannot open the file, or the migration fails.
          */
-        auto initAndStart(Json::Value const& config) -> void override;
+        auto Start(Json::Value const& config) -> void;
 
         /**
-         * @brief Drop the plugin's reference to the client.
+         * @brief Drop the service's reference to the client.
          *
          * The database closes once no other holder of the client is left.
          */
-        auto shutdown() -> void override;
+        auto Stop() -> void;
 
         /**
          * @brief Get the client of the database.
-         * @return The client; null before `initAndStart` and after `shutdown`.
+         * @return The client; null before `Start` and after `Stop`.
          */
         [[nodiscard]] auto Client() const -> drogon::orm::DbClientPtr;
     };

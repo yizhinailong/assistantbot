@@ -6,6 +6,7 @@
 
 #include <drogon/drogon.h>
 
+#include "application.hpp"
 #include "servers/auth.hpp"
 #include "servers/live_events.hpp"
 
@@ -20,7 +21,7 @@ namespace controllers {
         drogon::HttpRequestPtr const& request,
         drogon::WebSocketConnectionPtr const& connection
     ) -> void {
-        if (!drogon::app().getPlugin<admin::Auth>()->AttachStream(request, connection, request->path() == "/api/admin/logs/ws")) {
+        if (!drogon::app().getPlugin<app::Application>()->Auth().AttachStream(request, connection, request->path() == "/api/admin/logs/ws")) {
             connection->forceClose();
         }
     }

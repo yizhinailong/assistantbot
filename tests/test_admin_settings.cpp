@@ -7,6 +7,7 @@
 #include <drogon/drogon_test.h>
 
 #include "admin_support.hpp"
+#include "application.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
 #include "storage/database.hpp"
 #include "storage/settings.hpp"
@@ -31,7 +32,7 @@ DROGON_TEST(ReplySettingsRoundTripAndRestoreDefaultsWithoutLeakingSecrets) {
     CHECK(updated["values"] == overrides);
     CHECK(updated["overrides"] == overrides);
     CHECK(updated["defaults"] == before["defaults"]);
-    auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
+    auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
     CHECK(storage::load_setting(*db, workflow::BOT_SETTINGS_NAME) == overrides);
     CHECK(test_support::success(test_support::request_admin("/api/admin/bot-config")) == updated);
     overrides["max_tokens"] = Json::Value{};
@@ -45,7 +46,7 @@ DROGON_TEST(ReplySettingsRoundTripAndRestoreDefaultsWithoutLeakingSecrets) {
 }
 
 DROGON_TEST(ReplySettingsReturnExactValidationErrorsAndKeepTheSnapshot) {
-    auto const settings{ drogon::app().getPlugin<controllers::AssistantBot>()->Settings() };
+    auto const settings{ drogon::app().getPlugin<app::Application>()->Bot().Settings() };
     auto const before{ settings->Current() };
     auto const bad{ test_support::request_admin("/api/admin/bot-config", drogon::Put, test_support::field("history_turns", -1)) };
     CHECK(bad->statusCode() == drogon::k400BadRequest);
@@ -58,8 +59,8 @@ DROGON_TEST(ReplySettingsReturnExactValidationErrorsAndKeepTheSnapshot) {
 }
 
 DROGON_TEST(ReplySettingsReportStorageFailureAndConcurrentSaveAs409) {
-    auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
-    auto const settings{ drogon::app().getPlugin<controllers::AssistantBot>()->Settings() };
+    auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
+    auto const settings{ drogon::app().getPlugin<app::Application>()->Bot().Settings() };
     auto const before{ settings->Current() };
     db->execSqlSync("PRAGMA query_only = ON");
     auto const failed{ test_support::request_admin("/api/admin/bot-config", drogon::Put, test_support::field("model", "cannot-save")) };

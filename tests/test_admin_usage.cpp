@@ -5,6 +5,7 @@
 #include <drogon/drogon_test.h>
 
 #include "admin_support.hpp"
+#include "application.hpp"
 #include "common/time.hpp"
 #include "storage/database.hpp"
 #include "storage/usage.hpp"
@@ -20,7 +21,7 @@ DROGON_TEST(UsageQueriesRequireAuthenticationAndValidBoundedIntervals) {
 }
 
 DROGON_TEST(UsageGroupsUseTheSameUtcBoundariesAndPreserveUnknownCacheReports) {
-    auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
+    auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
     for (auto const timestamp : { 86399, 86400, 172799, 172800 }) {
         drogon::sync_wait(storage::record_usage(db, {
                                                         .timestamp = timestamp,

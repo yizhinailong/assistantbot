@@ -1,6 +1,6 @@
 /**
  * @file runtime_state.hpp
- * @brief Declare the runtime state and process sampling plugin.
+ * @brief Declare the runtime state and process sampling service.
  */
 #pragma once
 
@@ -12,7 +12,6 @@
 #include <string>
 
 #include <drogon/orm/DbClient.h>
-#include <drogon/plugins/Plugin.h>
 #include <drogon/utils/coroutine.h>
 #include <trantor/net/EventLoop.h>
 
@@ -29,7 +28,7 @@ namespace admin {
     /**
      * @brief Hold runtime state and process samples for the administration endpoints.
      */
-    class Runtime : public drogon::Plugin<Runtime> {
+    class Runtime {
     private:
         /**
          * @brief State shared with the periodic timer.
@@ -39,11 +38,11 @@ namespace admin {
             std::deque<ProcessMetric> samples; ///< Oldest sample first.
         };
 
-        controllers::AssistantBot* m_bot{};                  ///< Bot plugin whose pause and session state are reported.
+        controllers::AssistantBot* m_bot{};                  ///< Bot service whose pause and session state are reported.
         std::optional<drogon_onebot::OneBot> m_onebot;       ///< Typed client for runtime OneBot details.
         drogon::orm::DbClientPtr m_database;                 ///< Database for daily model usage.
         std::string m_model;                                 ///< Configured model name.
-        std::int64_t m_started_at{};                         ///< Unix timestamp when this plugin initialized.
+        std::int64_t m_started_at{};                         ///< Unix timestamp when this service started.
         std::shared_ptr<State> m_state;                      ///< Metrics state shared with the timer callback.
         trantor::EventLoop* m_loop{};                        ///< Main application loop that owns `m_timer`.
         trantor::TimerId m_timer{ trantor::InvalidTimerId }; ///< Periodic metrics timer.
@@ -57,15 +56,22 @@ namespace admin {
     public:
         /**
          * @brief Bind dependencies, record startup, and start process sampling.
-         * @param config Plugin config; currently unused.
-         * @throws std::invalid_argument If a required dependency is missing.
+         * @param bot Initialized bot service.
+         * @param onebot Client used for runtime OneBot queries.
+         * @param model Default model name.
+         * @param database Opened and migrated SQLite client.
          */
-        auto initAndStart(Json::Value const& config) -> void override;
+        auto Start(
+            controllers::AssistantBot& bot,
+            drogon_onebot::OneBot onebot,
+            std::string model,
+            drogon::orm::DbClientPtr database
+        ) -> void;
 
         /**
          * @brief Invalidate the process sampler and release shared state.
          */
-        auto shutdown() -> void override;
+        auto Stop() -> void;
 
         /**
          * @brief Build the runtime status, querying independent OneBot details asynchronously.

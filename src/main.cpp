@@ -8,26 +8,17 @@
 
 #include <drogon/drogon.h>
 
-#include "controllers/onebot/assistant_bot.hpp"
-#include "servers/auth.hpp"
-#include "servers/runtime_state.hpp"
+#include "application.hpp"
 
 namespace {
 
     /**
-     * @brief Abort when config.json does not load the bot plugin.
-     *
-     * Drogon only logs an unknown plugin name and keeps running, which would leave an app
-     * that serves HTTP but never answers a message. Call this from a beginning advice,
-     * after the plugins have started.
+     * @brief Abort when config.json does not load the application services.
+     * @note Call after plugin initialization and before listeners accept requests.
      */
-    auto check_bot_plugin() -> void {
-        if (drogon::app().getPlugin<admin::Auth>() == nullptr || drogon::app().getPlugin<admin::Runtime>() == nullptr) {
-            LOG_FATAL << "admin::Auth and admin::Runtime must be loaded; refusing to serve unprotected administrative routes";
-            std::abort();
-        }
-        if (drogon::app().getPlugin<controllers::AssistantBot>() == nullptr) {
-            LOG_FATAL << "controllers::AssistantBot is not loaded; add it to plugins in config.json";
+    auto check_application() -> void {
+        if (drogon::app().getPlugin<app::Application>() == nullptr) {
+            LOG_FATAL << "app::Application is not loaded; configure it with the OneBot and OpenAI dependencies before serving requests";
             std::abort();
         }
     }
@@ -59,7 +50,7 @@ namespace {
 auto main() -> int {
     drogon::app()
         .loadConfigFile("config.json")
-        .registerBeginningAdvice(check_bot_plugin)
+        .registerBeginningAdvice(check_application)
         .registerBeginningAdvice(print_routes)
         .run();
     return 0;

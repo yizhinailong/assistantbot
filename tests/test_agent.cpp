@@ -5,6 +5,7 @@
 #include <atomic>
 
 #include "admin_support.hpp"
+#include "application.hpp"
 #include "common/json.hpp"
 #include "common/time.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
@@ -62,11 +63,11 @@ namespace {
 } // namespace
 
 DROGON_TEST(AgentToolsStayScopedAndRespectLimitsAndRevisions) {
-    auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
+    auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
     auto features{ std::make_shared<workflow::FeatureSettings>(db) };
     auto models{ std::make_shared<workflow::ModelRoles>(drogon_openai::OpenAI{ { .base_url = std::string{ test_support::SERVER_URL } + "/agent", .model = "agent", .max_retries = 0 } }, db, "agent") };
     auto memory{ std::make_shared<workflow::MemoryService>(db, models) };
-    auto tasks{ drogon::app().getPlugin<controllers::AssistantBot>()->Tasks() };
+    auto tasks{ drogon::app().getPlugin<app::Application>()->Bot().Tasks() };
     workflow::AgentRuntime agent{ features, models, memory, tasks, db, drogon_onebot::OneBot{ drogon_onebot::OneBotConfig{ .base_url = std::string{ test_support::SERVER_URL } + "/napcat" } } };
     auto tools{ features->Describe("tools")["values"] };
     tools["enabled"] = true;
@@ -116,11 +117,11 @@ DROGON_TEST(AgentToolsStayScopedAndRespectLimitsAndRevisions) {
 }
 
 DROGON_TEST(AgentRolesAndMemoryAffectActualRequests) {
-    auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
+    auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
     auto features{ std::make_shared<workflow::FeatureSettings>(db) };
     auto models{ std::make_shared<workflow::ModelRoles>(drogon_openai::OpenAI{ { .base_url = std::string{ test_support::SERVER_URL } + "/agent", .model = "agent", .max_retries = 0 } }, db, "agent") };
     auto memory{ std::make_shared<workflow::MemoryService>(db, models) };
-    workflow::AgentRuntime agent{ features, models, memory, drogon::app().getPlugin<controllers::AssistantBot>()->Tasks(), db, drogon_onebot::OneBot{ drogon_onebot::OneBotConfig{ .base_url = std::string{ test_support::SERVER_URL } + "/napcat" } } };
+    workflow::AgentRuntime agent{ features, models, memory, drogon::app().getPlugin<app::Application>()->Bot().Tasks(), db, drogon_onebot::OneBot{ drogon_onebot::OneBotConfig{ .base_url = std::string{ test_support::SERVER_URL } + "/napcat" } } };
     auto roles{ features->Describe("models")["values"] };
     roles["decision"]["enabled"] = true;
     roles["decision"]["model"] = "decision-deny";
@@ -165,7 +166,7 @@ DROGON_TEST(AgentRolesAndMemoryAffectActualRequests) {
 }
 
 DROGON_TEST(AgentOffersOnlyAvailableCapabilitiesAndResolvesSourceImages) {
-    auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
+    auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
     auto features{ std::make_shared<workflow::FeatureSettings>(db) };
     auto roles{ workflow::default_feature_settings()["models"] };
     drogon::sync_wait(features->Update("models", roles));
@@ -175,7 +176,7 @@ DROGON_TEST(AgentOffersOnlyAvailableCapabilitiesAndResolvesSourceImages) {
     drogon::sync_wait(features->Update("tools", tools));
     auto models{ std::make_shared<workflow::ModelRoles>(drogon_openai::OpenAI{ { .base_url = std::string{ test_support::SERVER_URL } + "/agent", .model = "agent", .max_retries = 0 } }, db, "agent") };
     auto memory{ std::make_shared<workflow::MemoryService>(db, models) };
-    workflow::AgentRuntime agent{ features, models, memory, drogon::app().getPlugin<controllers::AssistantBot>()->Tasks(), db, drogon_onebot::OneBot{ { .base_url = std::string{ test_support::SERVER_URL } + "/napcat" } } };
+    workflow::AgentRuntime agent{ features, models, memory, drogon::app().getPlugin<app::Application>()->Bot().Tasks(), db, drogon_onebot::OneBot{ { .base_url = std::string{ test_support::SERVER_URL } + "/napcat" } } };
     auto send{ [](drogon_onebot::Message, std::string) -> drogon::Task<Json::Value> {throw std::runtime_error{"unexpected send"};co_return Json::Value{}; } };
     drogon_openai::ChatCompletionCreateParams params{};
     params.messages = { { .role = "user", .content = "capability gates" } };
@@ -191,7 +192,7 @@ DROGON_TEST(AgentOffersOnlyAvailableCapabilitiesAndResolvesSourceImages) {
 }
 
 DROGON_TEST(McpSchemasRequireSelectionAndDoNotLeakAcrossReplies) {
-    auto const db{ drogon::app().getPlugin<storage::Database>()->Client() };
+    auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
     auto features{ std::make_shared<workflow::FeatureSettings>(db) };
     drogon::sync_wait(features->Update("models", workflow::default_feature_settings()["models"]));
     auto tools{ features->Describe("tools")["values"] };
@@ -207,7 +208,7 @@ DROGON_TEST(McpSchemasRequireSelectionAndDoNotLeakAcrossReplies) {
     drogon::sync_wait(features->Update("mcp", mcp));
     auto models{ std::make_shared<workflow::ModelRoles>(drogon_openai::OpenAI{ { .base_url = std::string{ test_support::SERVER_URL } + "/agent", .model = "agent", .max_retries = 0 } }, db, "agent") };
     auto memory{ std::make_shared<workflow::MemoryService>(db, models) };
-    workflow::AgentRuntime agent{ features, models, memory, drogon::app().getPlugin<controllers::AssistantBot>()->Tasks(), db, drogon_onebot::OneBot{ { .base_url = std::string{ test_support::SERVER_URL } + "/napcat" } } };
+    workflow::AgentRuntime agent{ features, models, memory, drogon::app().getPlugin<app::Application>()->Bot().Tasks(), db, drogon_onebot::OneBot{ { .base_url = std::string{ test_support::SERVER_URL } + "/napcat" } } };
     auto send{ [](drogon_onebot::Message, std::string) -> drogon::Task<Json::Value> {throw std::runtime_error{"unexpected send"};co_return Json::Value{}; } };
     for (int i{}; i < 2; ++i) {
         saw_remote = false;

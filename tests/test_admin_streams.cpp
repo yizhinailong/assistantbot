@@ -18,6 +18,7 @@
 #include <json/json.h>
 
 #include "admin_support.hpp"
+#include "application.hpp"
 #include "servers/live_events.hpp"
 
 namespace {
@@ -183,7 +184,7 @@ DROGON_TEST(StreamSubscriptionsFilterFriendsAndLogoutClosesTheConnection) {
     REQUIRE(stream.Pop("error").has_value());
     CHECK(test_support::request_admin("/api/admin/auth/logout", drogon::Post, {}, cookie)->statusCode() == drogon::k200OK);
     CHECK(stream.Closed());
-    CHECK(!drogon::app().getPlugin<admin::Auth>()->Authenticated(cookie));
+    CHECK(!drogon::app().getPlugin<app::Application>()->Auth().Authenticated(cookie));
 }
 
 DROGON_TEST(LogStreamAppliesFiltersAndReplaysRetainedRecordsAfterReconnect) {

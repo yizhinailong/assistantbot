@@ -18,7 +18,7 @@ namespace workflow {
     constexpr char const* BOT_SETTINGS_NAME{ "bot" }; ///< Name of the overrides in the database's settings table.
 
     /**
-     * @brief Hold the bot's settings: the plugin config from config.json, overlaid with the
+     * @brief Hold the bot's settings: application bot defaults from config.json, overlaid with the
      * overrides saved in the database.
      *
      * Hands out immutable snapshots. A reply takes one when it starts and keeps it to the
@@ -28,7 +28,7 @@ namespace workflow {
      */
     class BotSettings {
     private:
-        Json::Value m_defaults;                     ///< Plugin config from config.json, as an object; never changes.
+        Json::Value m_defaults;                     ///< Application bot defaults from config.json, as an object; never changes.
         drogon::orm::DbClientPtr m_db;              ///< Database that keeps the overrides.
         mutable std::mutex m_mutex;                 ///< Guards the members below.
         Json::Value m_overrides;                    ///< Saved overrides: an object of keys from `BOT_CONFIG_KEYS`.
@@ -40,8 +40,8 @@ namespace workflow {
          * @brief Read the saved overrides and build the first snapshot.
          *
          * Blocks on the database: call it only on a thread that runs no event loop, such as
-         * the one that runs `initAndStart`.
-         * @param defaults Plugin config from config.json; null when it gives none.
+         * the one that runs `app::Application::initAndStart`.
+         * @param defaults Application bot defaults from config.json; null when it gives none.
          * @param db Database with the settings table.
          * @throws std::invalid_argument If `defaults` is invalid, with `parse_bot_config()`'s
          * message, or if the saved overrides are, with that message and a note that they come

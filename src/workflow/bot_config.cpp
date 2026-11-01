@@ -1,6 +1,6 @@
 /**
  * @file bot_config.cpp
- * @brief Implement reading the settings of the `controllers::AssistantBot` plugin.
+ * @brief Implement reading the bot defaults from the application configuration.
  */
 #include "workflow/bot_config.hpp"
 
@@ -15,7 +15,7 @@ namespace workflow {
 
     namespace {
 
-        constexpr char const* PLUGIN_NAME{ "controllers::AssistantBot" }; ///< Prefix of every error message.
+        constexpr char const* BOT_NAME{ "controllers::AssistantBot" }; ///< Prefix of every error message.
 
         /**
          * @brief Build the exception for an invalid config key.
@@ -24,12 +24,12 @@ namespace workflow {
          * @return Exception with the message `controllers::AssistantBot: <key> <problem>`.
          */
         auto invalid(std::string_view key, std::string_view problem) -> std::invalid_argument {
-            return std::invalid_argument{ std::format("{}: {} {}", PLUGIN_NAME, key, problem) };
+            return std::invalid_argument{ std::format("{}: {} {}", BOT_NAME, key, problem) };
         }
 
         /**
          * @brief Read an optional integer key.
-         * @param config Plugin config object, or null.
+         * @param config Application bot defaults object, or null.
          * @param key Name of the key.
          * @param min Smallest allowed value.
          * @return The value, or empty when the key is absent.
@@ -53,7 +53,7 @@ namespace workflow {
     } // namespace
 
     /**
-     * @brief Read and validate the plugin config.
+     * @brief Read and validate the application bot defaults.
      *
      * | Key | Required | Meaning |
      * | --- | --- | --- |
@@ -64,7 +64,7 @@ namespace workflow {
      * | `max_tokens` | No | Integer >= 1 or null; unset uses the endpoint's default |
      * | `max_reply_chars` | No | Integer >= 1, default 1500 |
      * | `model` | No | String; empty uses the model plugin default |
-     * @param config The plugin's `config` object; null when config.json gives none.
+     * @param config The application's `config.bot` object; null when config.json gives none.
      * @return Settings, with defaults for the keys that are absent.
      * @throws std::invalid_argument If `config` is not an object, or a key has the wrong type or
      * range. The message starts with `controllers::AssistantBot:` and names the key.

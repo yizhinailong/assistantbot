@@ -1,6 +1,6 @@
 /**
  * @file database.cpp
- * @brief Implement the plugin that opens the bot's SQLite database.
+ * @brief Implement the service that opens the bot's SQLite database.
  */
 #include "storage/database.hpp"
 
@@ -64,7 +64,7 @@ namespace storage {
      * The client has one connection, so its statements run one at a time in the order they
      * are sent, on a thread of its own, so it needs none of the app's event loops. Blocks
      * until the migration ends: call it only on a thread that runs no event loop, such as
-     * the one that runs `initAndStart`.
+     * the one that runs `app::Application::initAndStart`.
      * @param data_dir Directory of `DATABASE_FILE`; a relative path resolves against the
      * working directory.
      * @return Client of the migrated database.
@@ -84,15 +84,14 @@ namespace storage {
     /**
      * @brief Read `data_dir`, then open and migrate the database there.
      *
-     * Drogon starts the plugins on the thread that calls `app().run()`, before any event
-     * loop runs, so blocking on the database here is safe.
-     * @param config The plugin's `config` object; null when config.json gives none.
+     * `app::Application` calls this before any event loop runs, so blocking is safe.
+     * @param config Application configuration containing an optional `data_dir`.
      * @throws std::invalid_argument If `config` is not an object, or `data_dir` is not a
      * non-empty string.
      * @throws std::filesystem::filesystem_error If the directory cannot be created.
      * @throws std::runtime_error If SQLite cannot open the file, or the migration fails.
      */
-    auto Database::initAndStart(Json::Value const& config) -> void {
+    auto Database::Start(Json::Value const& config) -> void {
         if (!config.isNull() && !config.isObject()) {
             throw std::invalid_argument{ "storage::Database: config must be an object" };
         }
@@ -108,17 +107,17 @@ namespace storage {
     }
 
     /**
-     * @brief Drop the plugin's reference to the client.
+     * @brief Drop the service's reference to the client.
      *
      * The database closes once no other holder of the client is left.
      */
-    auto Database::shutdown() -> void {
+    auto Database::Stop() -> void {
         m_client.reset();
     }
 
     /**
      * @brief Get the client of the database.
-     * @return The client; null before `initAndStart` and after `shutdown`.
+     * @return The client; null before `Start` and after `Stop`.
      */
     auto Database::Client() const -> drogon::orm::DbClientPtr {
         return m_client;

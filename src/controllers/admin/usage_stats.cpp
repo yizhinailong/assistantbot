@@ -4,6 +4,7 @@
  */
 #include "controllers/admin/usage_stats.hpp"
 
+#include "application.hpp"
 #include "common/time.hpp"
 #include "servers/http_helpers.hpp"
 #include "storage/database.hpp"
@@ -26,7 +27,7 @@ namespace controllers {
             if (to <= from || to - from > 366 * 86400LL) {
                 throw std::invalid_argument{ "usage interval must be positive and no longer than 366 days; to is exclusive" };
             }
-            co_return drogon::HttpResponse::newHttpJsonResponse(co_await storage::usage_report(drogon::app().getPlugin<storage::Database>()->Client(), from, to, today));
+            co_return drogon::HttpResponse::newHttpJsonResponse(co_await storage::usage_report(drogon::app().getPlugin<app::Application>()->Database().Client(), from, to, today));
         } catch (std::invalid_argument const& error) {
             co_return admin::json_error(error.what(), drogon::k400BadRequest);
         } catch (std::exception const& error) {
