@@ -4,7 +4,7 @@ English · [简体中文](README.zh-CN.md)
 
 A QQ chat bot built on [drogon](https://github.com/drogonframework/drogon). It receives messages from a OneBot v11 implementation such as [NapCat](https://github.com/NapNeko/NapCatQQ) through [drogon-onebot](https://github.com/yizhinailong/drogon-onebot), and answers them with an OpenAI-compatible model such as DeepSeek through [drogon-openai](https://github.com/yizhinailong/drogon-openai).
 
-The bot answers friends by default and supports opt-in group conversations. Admin pages manage access, live chat records, reply settings, independent model roles, memory, scheduled tasks, built-in and Lua tools, MCP services, favourite stickers, character images, usage, logs, and HTTP traces. SQLite persists configuration and records; short-term model context stays in memory. Image recognition starts enabled; the other optional model roles, memory, and tools start disabled.
+The bot answers friends by default and supports opt-in group conversations. Admin pages manage access, live chat records, reply settings, independent model roles, memory, scheduled tasks, built-in and Lua tools, MCP services, favourite stickers, character images, usage, logs, and HTTP traces. SQLite persists configuration and records; short-term model context stays in memory. Image recognition starts enabled, and web search and page reading use the primary provider's Search and Fetch API when the tool loop is on; the other optional model roles, memory, and tools start disabled.
 
 [Quick start](#quick-start) · [Docker](docs/en/docker.md) · [Documentation index](docs/en/README.md) · [Bot guide](docs/en/bot.md) · [Admin pages](docs/en/admin.md) · [Version tags and Linux CI](docs/en/ci.md) · [Doxygen guide](docs/en/doxygen.md)
 

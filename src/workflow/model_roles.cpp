@@ -236,6 +236,14 @@ namespace workflow {
     }
 
     /**
+     * @brief Copy the configured primary bearer token for a same-provider tool.
+     * @return Primary API key; empty when the plugin has none.
+     */
+    auto ModelRoles::PrimaryKey() const -> std::string {
+        return m_primary.Config().api_key;
+    }
+
+    /**
      * @brief Append request outcome and optional usage without failing the original operation.
      * @param session Conversation key.
      * @param model Reported or configured model.

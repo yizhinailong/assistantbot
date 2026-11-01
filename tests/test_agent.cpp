@@ -191,6 +191,27 @@ DROGON_TEST(AgentOffersOnlyAvailableCapabilitiesAndResolvesSourceImages) {
     CHECK(result.text == "image checked");
 }
 
+DROGON_TEST(WebToolsSearchAndReadThroughConfiguredEndpoints) {
+    auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
+    auto features{ std::make_shared<workflow::FeatureSettings>(db) };
+    auto models{ std::make_shared<workflow::ModelRoles>(drogon_openai::OpenAI{ { .base_url = std::string{ test_support::SERVER_URL } + "/agent", .model = "agent", .max_retries = 0 } }, db, "agent") };
+    auto memory{ std::make_shared<workflow::MemoryService>(db, models) };
+    workflow::AgentRuntime agent{ features, models, memory, drogon::app().getPlugin<app::Application>()->Bot().Tasks(), db, drogon_onebot::OneBot{ { .base_url = std::string{ test_support::SERVER_URL } + "/napcat" } } };
+    auto tools{ features->Describe("tools")["values"] };
+    tools["enabled"] = true;
+    drogon::sync_wait(features->Update("tools", tools));
+    auto web{ features->Describe("web")["values"] };
+    web["search_url"] = std::string{ test_support::SERVER_URL } + "/agent/search";
+    web["fetch_url"] = std::string{ test_support::SERVER_URL } + "/agent/fetch";
+    drogon::sync_wait(features->Update("web", web));
+    auto send{ [](drogon_onebot::Message, std::string) -> drogon::Task<Json::Value> {throw std::runtime_error{"unexpected send"};co_return Json::Value{}; } };
+    drogon_openai::ChatCompletionCreateParams params{};
+    params.messages = { { .role = "user", .content = "web flow" } };
+    auto result{ drogon::sync_wait(agent.Run({ .user_id = 55006 }, params, "web flow", send)) };
+    CHECK(result.completed);
+    CHECK(result.text == "web done");
+}
+
 DROGON_TEST(McpSchemasRequireSelectionAndDoNotLeakAcrossReplies) {
     auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
     auto features{ std::make_shared<workflow::FeatureSettings>(db) };
@@ -281,6 +302,22 @@ auto main(int argc, char** argv) -> int {
             result = completion(model, "fallback");
         } else if (model == "memory") {
             result = completion(model, R"({"profile":["likes tea"],"relationship":[],"recent_interactions":[],"memory":"likes tea","affinity_delta":1})");
+        } else if (prompt == "web flow") {
+            auto const last{ (*body)["messages"][(*body)["messages"].size() - 1]["content"].asString() };
+            if (calls == 0) {
+                result = completion(model, "", "web_search", common::parse_json(R"({"query":"deepseek","count":2})"), "search");
+            } else if (calls == 1) {
+                if (!last.contains("search summary") || !last.contains("example.test/page")) {
+                    throw std::runtime_error{ "web search result is absent" };
+                }
+                result = completion(model, "", "web_fetch", common::parse_json(R"({"url":"https://example.test/page"})"), "fetch");
+            } else {
+                auto const page{ common::parse_json(last) };
+                if (!page["truncated"].asBool() || page["content"].asString().empty() || !page["content"].asString().starts_with("page body")) {
+                    throw std::runtime_error{ "web fetch result is absent or unbounded" };
+                }
+                result = completion(model, "web done");
+            }
         } else if (prompt == "MCP flow") {
             bool offered{};
             for (auto const& tool : (*body)["tools"]) {
@@ -318,6 +355,35 @@ auto main(int argc, char** argv) -> int {
     },
                                   { drogon::Post });
     drogon::app().registerHandler("/lua/echo", [](drogon::HttpRequestPtr req) -> drogon::Task<drogon::HttpResponsePtr> {auto response{drogon::HttpResponse::newHttpResponse()};response->setBody(std::string{req->body()});co_return response; }, { drogon::Post });
+    drogon::app().registerHandler("/agent/search", [](drogon::HttpRequestPtr req) -> drogon::Task<drogon::HttpResponsePtr> {
+        auto const body{ req->getJsonObject() };
+        if (!body || (*body)["query"] != "deepseek" || (*body)["ori_question"] != "web flow" || (*body)["count"].asInt() != 2) {
+            throw std::runtime_error{ "unexpected web search request" };
+        }
+        Json::Value entry{};
+        entry["title"] = "DeepSeek";
+        entry["url"] = "https://example.test/page";
+        entry["snippet"] = "search summary";
+        entry["date"] = "2026-10-31T00:00:00Z";
+        Json::Value result{};
+        result["results"].append(entry);
+        co_return drogon::HttpResponse::newHttpJsonResponse(result);
+    },
+                                  { drogon::Post });
+    drogon::app().registerHandler("/agent/fetch", [](drogon::HttpRequestPtr req) -> drogon::Task<drogon::HttpResponsePtr> {
+        auto const body{ req->getJsonObject() };
+        if (!body || (*body)["url"] != "https://example.test/page") {
+            throw std::runtime_error{ "unexpected web fetch request" };
+        }
+        std::string content{ "page body" };
+        for (int index{}; index < 3000; ++index) {
+            content += "深";
+        }
+        Json::Value result{};
+        result["content"] = content;
+        co_return drogon::HttpResponse::newHttpJsonResponse(result);
+    },
+                                  { drogon::Post });
     drogon::app().registerHandler("/agent/mcp", [](drogon::HttpRequestPtr req) -> drogon::Task<drogon::HttpResponsePtr> {
         if (req->method() == drogon::Delete) {
             co_return drogon::HttpResponse::newHttpResponse();

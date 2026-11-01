@@ -17,6 +17,9 @@ DROGON_TEST(FeatureSettingsKeepSnapshotsAndRejectStaleSaves) {
     CHECK((*initial)["models"]["vision"]["enabled"].asBool());
     CHECK(!(*initial)["models"]["executor"]["enabled"].asBool());
     CHECK(!(*initial)["tools"]["enabled"].asBool());
+    CHECK((*initial)["web"]["enabled"].asBool());
+    CHECK((*initial)["web"]["search_url"].asString().starts_with("https://"));
+    CHECK((*initial)["web"]["api_key_env"].asString().empty());
     Json::Value groups{ Json::objectValue };
     groups["123"]["enabled"] = true;
     groups["123"]["additional_prompt"] = "Be friendly.";
@@ -36,6 +39,12 @@ DROGON_TEST(FeatureSettingsKeepSnapshotsAndRejectStaleSaves) {
     models["vision"].removeMember("api_key");
     models["vision"]["base_url"] = "https://secret@example.test/v1";
     CHECK_THROWS_AS(drogon::sync_wait(settings.Update("models", models)), std::invalid_argument);
+    Json::Value web{ Json::objectValue };
+    web["fetch_url"] = "file:///etc/passwd";
+    CHECK_THROWS_AS(drogon::sync_wait(settings.Update("web", web)), std::invalid_argument);
+    web["fetch_url"] = "https://example.test/fetch";
+    web["api_key_env"] = "NOT A NAME";
+    CHECK_THROWS_AS(drogon::sync_wait(settings.Update("web", web)), std::invalid_argument);
     CHECK_THROWS_AS(static_cast<void>(settings.Describe("_revision")), std::invalid_argument);
     CHECK(settings.Describe("groups")["revision"].asString() == "1");
 }

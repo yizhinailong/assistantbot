@@ -11,7 +11,9 @@
 
 #include "common/json.hpp"
 #include "common/text.hpp"
+#include "servers/auth.hpp"
 #include "servers/http_helpers.hpp"
+#include "servers/http_traces.hpp"
 #include "storage/feature_records.hpp"
 #include "storage/memories.hpp"
 #include "workflow/access_control.hpp"
@@ -20,6 +22,7 @@
 #include "workflow/tools/http.hpp"
 #include "workflow/tools/lua.hpp"
 #include "workflow/tools/mcp.hpp"
+#include "workflow/tools/web.hpp"
 
 namespace {
     /**
@@ -44,6 +47,26 @@ namespace {
     auto image_url(std::string const& value) -> bool {
         static std::regex const URL{ R"(https?://[^\s/@?#]+(?:/[^\s#]*)?)" };
         return value.size() <= 8192 && std::regex_match(value, URL);
+    }
+
+    /**
+     * @brief Resolve the bearer token used by the web tools.
+     * @param config Web feature section.
+     * @param primary Configured primary API key.
+     * @return Named environment value when set, otherwise the primary key.
+     * @throws std::runtime_error If the named environment variable is unset or empty.
+     */
+    auto web_credential(Json::Value const& config, std::string const& primary) -> std::string {
+        auto const environment{ config["api_key_env"].asString() };
+        if (environment.empty()) {
+            return primary;
+        }
+        auto key{ admin::read_env(environment) };
+        if (key.empty()) {
+            throw std::runtime_error{ "credential environment variable is unset: " + environment };
+        }
+        admin::add_http_trace_secret(key);
+        return key;
     }
 
     /**
@@ -372,6 +395,29 @@ namespace workflow {
                     }
                     co_return Json::Value{ completion_text(co_await m_models->Complete(turn.snapshot, "vision", session, vision_params(args["question"].asString(), urls))) };
                 }
+                if (name == "web_search" || name == "web_fetch") {
+                    auto const config{ turn.snapshot["web"] };
+                    auto const key{ web_credential(config, m_models->PrimaryKey()) };
+                    auto const budget{ static_cast<std::size_t>(turn.snapshot["execution"]["max_tool_result_chars"].asUInt()) };
+                    if (name == "web_search") {
+                        co_return co_await tools::web_search(
+                            config["search_url"].asString(),
+                            key,
+                            args["query"].asString(),
+                            bounded(prompt, 128),
+                            args["count"].isInt() ? args["count"].asInt() : 5,
+                            budget,
+                            std::to_string(session)
+                        );
+                    }
+                    co_return co_await tools::web_fetch(
+                        config["fetch_url"].asString(),
+                        key,
+                        args["url"].asString(),
+                        budget,
+                        std::to_string(session)
+                    );
+                }
                 if (name == "recall_memory") {
                     co_return co_await m_memory->Recall(turn.snapshot, session, args["query"].asString());
                 }
@@ -562,6 +608,7 @@ namespace workflow {
                             (name == "deep_think" && !turn.snapshot["models"]["thinking"]["enabled"].asBool()) ||
                             (name == "generate_image" && !turn.snapshot["models"]["image_generation"]["enabled"].asBool()) ||
                             (name == "ask_images" && (peer.image_urls.empty() || !turn.snapshot["models"]["vision"]["enabled"].asBool())) ||
+                            ((name == "web_search" || name == "web_fetch") && !turn.snapshot["web"]["enabled"].asBool()) ||
                             ((name == "recall_memory" || name == "save_memory" || name == "delete_memory") && !turn.snapshot["memory"]["enabled"].asBool())) {
                             continue;
                         }

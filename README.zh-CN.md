@@ -4,7 +4,7 @@
 
 基于 [drogon](https://github.com/drogonframework/drogon) 的 QQ 聊天机器人。它通过 [drogon-onebot](https://github.com/yizhinailong/drogon-onebot) 接收 [NapCat](https://github.com/NapNeko/NapCatQQ) 等 OneBot v11 实现转来的消息，再通过 [drogon-openai](https://github.com/yizhinailong/drogon-openai) 调用 DeepSeek 等兼容 OpenAI 格式的模型来回复。
 
-默认回复好友，可单独启用群聊。管理后台提供访问控制、实时聊天记录、回复设置、独立模型角色、人物与记忆、定时任务、内置和 Lua 工具、MCP 服务、收藏表情、角色图、用量、日志和请求追踪。配置和记录保存在 SQLite，短期模型上下文只在内存中。图片识别默认启用；其他可选模型角色、记忆和工具默认关闭。
+默认回复好友，可单独启用群聊。管理后台提供访问控制、实时聊天记录、回复设置、独立模型角色、人物与记忆、定时任务、内置和 Lua 工具、MCP 服务、收藏表情、角色图、用量、日志和请求追踪。配置和记录保存在 SQLite，短期模型上下文只在内存中。图片识别默认启用；开启工具循环后，联网搜索和网页读取使用主接口的 Search / Fetch API。其他可选模型角色、记忆和工具默认关闭。
 
 [快速开始](#快速开始) · [Docker](docs/zh-CN/docker.md) · [文档索引](docs/zh-CN/README.md) · [bot 使用说明](docs/zh-CN/bot.md) · [管理后台](docs/zh-CN/admin.md) · [版本标签与 Linux CI](docs/zh-CN/ci.md) · [Doxygen 使用说明](docs/zh-CN/doxygen.md)
 

@@ -77,6 +77,12 @@ namespace workflow {
          */
         [[nodiscard]] auto EmbeddingSpace(Json::Value const& snapshot) const -> std::string;
 
+        /**
+         * @brief Copy the configured primary bearer token for a same-provider tool.
+         * @return Primary API key; empty when the plugin has none.
+         */
+        [[nodiscard]] auto PrimaryKey() const -> std::string;
+
     private:
         /**
          * @brief Build an immutable client override with a per-role trace observer.

@@ -9,6 +9,7 @@ import {
   testLuaTool,
   type ToolConfig,
   type ToolDefinition,
+  type WebConfig,
   type LuaTool,
 } from '@/api/tooling'
 import { describeError } from '@/api/client'
@@ -19,6 +20,7 @@ const defaultSchema = {
   additionalProperties: false,
 }
 const config = ref<FeatureSection<ToolConfig>>(),
+  web = ref<FeatureSection<WebConfig>>(),
   catalog = ref<ToolDefinition[]>([]),
   records = ref<FeatureRecord<LuaTool>[]>([])
 const busy = ref(false),
@@ -39,17 +41,32 @@ async function load(): Promise<void> {
   busy.value = true
   error.value = ''
   try {
-    const [settings, builtins, custom] = await Promise.all([
+    const [settings, builtins, custom, webSettings] = await Promise.all([
       getFeature<ToolConfig>('tools'),
       getBuiltins(),
       getLuaTools(),
+      getFeature<WebConfig>('web'),
     ])
     for (const tool of builtins.tools) {
       settings.values.builtin[tool.name] ??= { enabled: true, description: '' }
     }
     config.value = settings
+    web.value = webSettings
     catalog.value = builtins.tools
     records.value = custom.tools
+  } catch (cause) {
+    report(cause)
+  } finally {
+    busy.value = false
+  }
+}
+async function saveWeb(): Promise<void> {
+  if (!web.value) return
+  busy.value = true
+  error.value = ''
+  try {
+    web.value = await saveFeature('web', web.value.values, web.value.revision)
+    notice.value = '联网配置已保存。'
   } catch (cause) {
     report(cause)
   } finally {
@@ -212,6 +229,30 @@ onMounted(() => void load())
           </label>
         </div>
         <button class="primary">保存内置工具配置</button>
+      </fieldset>
+    </form>
+    <form v-if="web" class="panel" @submit.prevent="saveWeb">
+      <h2>联网工具</h2>
+      <p class="muted">
+        搜索与网页读取默认使用主接口同款的 DeepSeek Search / Fetch
+        API；密钥环境变量名留空时使用主密钥。 结果仅作为参考资料提供给模型。
+      </p>
+      <fieldset :disabled="busy">
+        <label><input v-model="web.values.enabled" type="checkbox" />启用联网工具</label>
+        <div class="fields">
+          <label class="field"
+            >搜索地址<input v-model="web.values.search_url" maxlength="2048" required /></label
+          ><label class="field"
+            >网页读取地址<input v-model="web.values.fetch_url" maxlength="2048" required /></label
+          ><label class="field"
+            >密钥环境变量名<input
+              v-model="web.values.api_key_env"
+              pattern="[A-Za-z_][A-Za-z0-9_]*"
+              maxlength="128"
+              placeholder="留空使用主密钥"
+          /></label>
+        </div>
+        <button class="primary">保存联网配置</button>
       </fieldset>
     </form>
     <section class="panel">

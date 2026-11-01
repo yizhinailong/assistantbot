@@ -176,7 +176,7 @@ The SQLite database has one connection, on a thread of its own, so its statement
 ## Known limitations
 
 - Groups require explicit enablement; private temporary sessions are unsupported.
-- Vision, independent models, memory, and tools require explicit configuration. See the [admin guide](admin.md) for supported capabilities and protocol limits.
+- Vision starts enabled; independent models, memory, and the tool loop require explicit configuration. With the tool loop on, web search and page reading call the primary provider's Search and Fetch API by default; see the [admin guide](admin.md) for supported capabilities and protocol limits.
 - Model context lives in memory and is lost when the app restarts; stored chat records remain available.
 - Access defaults to all friends and can be restricted in the admin pages; apart from serial reply processing per conversation, there is no rate limit.
 

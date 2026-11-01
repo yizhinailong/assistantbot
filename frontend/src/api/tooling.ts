@@ -34,6 +34,12 @@ export interface ToolConfig {
   enabled: boolean
   builtin: Record<string, { enabled: boolean; description: string }>
 }
+export interface WebConfig {
+  enabled: boolean
+  search_url: string
+  fetch_url: string
+  api_key_env: string
+}
 export interface LuaTool {
   enabled: boolean
   description: string

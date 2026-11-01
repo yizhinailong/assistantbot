@@ -14,6 +14,7 @@
 #include "storage/settings.hpp"
 #include "workflow/access_control.hpp"
 #include "workflow/tools/catalog.hpp"
+#include "workflow/tools/web.hpp"
 
 namespace workflow {
 
@@ -224,6 +225,14 @@ namespace workflow {
                     text(tool, "description", 4096);
                     values["builtin"][name] = std::move(tool);
                 }
+            } else if (section == "web") {
+                boolean(values, "enabled");
+                text(values, "search_url", 2048);
+                text(values, "fetch_url", 2048);
+                text(values, "api_key_env", 128);
+                environment_name(values["api_key_env"].asString());
+                endpoint(values["search_url"].asString(), false);
+                endpoint(values["fetch_url"].asString(), false);
             } else if (section == "mcp") {
                 if (!values["servers"].isArray() || values["servers"].size() > 16) {
                     throw std::invalid_argument{ "servers must be an array of at most 16 services" };
@@ -262,7 +271,7 @@ namespace workflow {
     } // namespace
 
     /**
-     * @brief Return defaults for groups, administrators, model roles, tools, MCP, and memory.
+     * @brief Return defaults for groups, administrators, model roles, tools, MCP, web, and memory.
      * @return Complete configuration with the vision role enabled and other optional
      * capabilities disabled.
      */
@@ -298,6 +307,11 @@ namespace workflow {
         root["tools"]["enabled"] = false;
         root["tools"]["builtin"] = Json::Value{ Json::objectValue };
         root["mcp"]["servers"] = Json::Value{ Json::arrayValue };
+        auto& web{ root["web"] };
+        web["enabled"] = true;
+        web["search_url"] = tools::WEB_SEARCH_URL;
+        web["fetch_url"] = tools::WEB_FETCH_URL;
+        web["api_key_env"] = "";
         return root;
     }
 
@@ -338,7 +352,7 @@ namespace workflow {
 
     /**
      * @brief Describe a section and its optimistic concurrency revision.
-     * @param section groups, admins, models, execution, memory, tools, or mcp.
+     * @param section groups, admins, models, execution, memory, tools, web, or mcp.
      * @return Values, defaults, and decimal revision.
      * @throws std::invalid_argument If the section is unknown.
      */

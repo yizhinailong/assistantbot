@@ -175,7 +175,7 @@ Linux CI 在单独的任务中运行 `pnpm check` 和构建，见 [版本标签�
 
 群聊页通过类型化 OneBot 接口读取已加入的群，所有群默认关闭。每个群可以设置启用、自动回复（关闭时需提及机器人）、群名片/昵称上下文、群命令和附加系统提示词，下一条消息起生效。管理员可以使用 `/on`、`/off`、`/auto on`、`/auto off`、`/prompt 提示词`、`/help`、`/reset`；管理员名单只授予群命令权限。暂停和黑名单仍然有效，私聊允许名单不限制已启用的群。
 
-`GET /api/admin/groups` 合并群列表与配置；`PUT /api/admin/groups/{qq}` 接收 `{values, revision}`。通用配置使用 `GET/PUT /api/admin/features/{section}`，节名为 `groups`、`admins`、`models`、`execution`、`memory`、`tools`、`mcp`。过期版本返回 409。会话接口和订阅中，正数字符串表示好友，负数字符串表示群；消息另含 `sender_id`、`group_id`。重启保留配置和聊天记录，但不从记录恢复模型上下文。
+`GET /api/admin/groups` 合并群列表与配置；`PUT /api/admin/groups/{qq}` 接收 `{values, revision}`。通用配置使用 `GET/PUT /api/admin/features/{section}`，节名为 `groups`、`admins`、`models`、`execution`、`memory`、`tools`、`web`、`mcp`。过期版本返回 409。会话接口和订阅中，正数字符串表示好友，负数字符串表示群；消息另含 `sender_id`、`group_id`。重启保留配置和聊天记录，但不从记录恢复模型上下文。
 
 ## 表情与角色图
 
@@ -215,7 +215,9 @@ Linux CI 在单独的任务中运行 `pnpm check` 和构建，见 [版本标签�
 
 ## 内置工具与 Lua
 
-“工具配置”页面启用工具循环，修改每个内置工具的开关和描述。`GET /api/admin/tools/builtin` 返回固定目录，包含最终回复、不回复、引用、中途回复、思考、看图、记忆、提醒、表情、图片、收藏表情管理、群提及和禁言，以及 MCP 发现与选择。群工具不会出现在私聊请求中。记忆或辅助模型关闭时，其对应工具也不提供。来源消息元数据包含当前消息 ID 和图片数；`ask_images` 使用从 0 开始的图片序号，只解析该消息里的 URL。模型工具和 Lua 宿主只向当前会话发送消息或创建任务，取消任务和删除记忆也限定当前会话；引用仅允许当前收到的消息。文本和引用工具回复遵守 `max_reply_chars`，仅第一段携带引用。即使模型参数请求其他收件人，这些限制也会生效。
+“工具配置”页面启用工具循环，修改每个内置工具的开关和描述。`GET /api/admin/tools/builtin` 返回固定目录，包含最终回复、不回复、引用、中途回复、思考、看图、联网搜索与网页读取、记忆、提醒、表情、图片、收藏表情管理、群提及和禁言，以及 MCP 发现与选择。群工具不会出现在私聊请求中。记忆或辅助模型关闭时，其对应工具也不提供。来源消息元数据包含当前消息 ID 和图片数；`ask_images` 使用从 0 开始的图片序号，只解析该消息里的 URL。模型工具和 Lua 宿主只向当前会话发送消息或创建任务，取消任务和删除记忆也限定当前会话；引用仅允许当前收到的消息。文本和引用工具回复遵守 `max_reply_chars`，仅第一段携带引用。即使模型参数请求其他收件人，这些限制也会生效。
+
+同一页面编辑 `web` 节：`enabled`、`search_url`、`fetch_url` 和 `api_key_env`。默认启用，地址为 DeepSeek 的搜索与读取接口（`https://api.deepseek.com/v1/tools/search` 和 `/v1/tools/fetch`）；`api_key_env` 留空时使用主模型的密钥。`web_search` 只返回标题、URL 和简短摘要，不返回正文；`web_fetch` 返回一个页面的 Markdown。页面由服务商下载，机器人自身不打开该 URL。两个工具的结果受 `max_tool_result_chars` 限制，并标记为不可信数据；搜索和读取是按次计费的服务商请求，不会自动重试。
 
 Lua 工具以带版本的文档保存在 SQLite。页面支持新增、编辑、删除、JSON 导入导出、示例参数和测试。测试模拟 HTTP、发消息和提醒，只返回操作列表，不产生真实副作用。接口是 `GET /api/admin/tools/lua`、`GET/PUT/DELETE /api/admin/tools/lua/{name}` 和 `POST /api/admin/tools/lua-test`；PUT 使用 `{value, revision}`，DELETE 使用 `?revision=`，测试使用 `{name, value, arguments}`。文档字段为 `enabled`、`description`、`parameters` 和 `script`。名称是最长 48 字符的 ASCII 标识符，不能占用内置或 MCP 保留名。参数支持经过验证的 JSON Schema 子集：对象、数组、基本类型、必填字段、枚举、数值和长度范围、额外字段开关。
 
