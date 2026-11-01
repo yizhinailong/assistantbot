@@ -4,7 +4,6 @@
  */
 #include "workflow/image_source.hpp"
 
-#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <regex>
