@@ -115,11 +115,11 @@ The same keys can also be saved in the database, under the setting `bot`, and ca
 
 ```
 (10000) 接收 <- 私聊 张三(20001) 你好[image]
-(10000) 发送 -> 私聊 张三(20001) 你好！图片我看不到，只能读文字。
+(10000) 发送 -> 私聊 张三(20001)
 (10000) 接收 <- 群聊 (30001) 群名片(20001) @10000 在吗
 ```
 
-The number at the start is the QQ account the bot is logged in as. Then comes the other account, as its name and QQ number, preceded by the group number in a group message. The name is the sender's group card when they set one, otherwise their nickname; when both are empty, only the QQ number in parentheses is left. Text segments appear as they are, `at` segments as `@<QQ number>`, and other segments as `[<type>]`, such as `[image]` or `[face]`. drogon puts the time, the thread ID, and the level in front of each line. A message that fails to send is logged at ERROR level instead.
+The number at the start is the QQ account the bot is logged in as. Then comes the other account, as its name and QQ number, preceded by the group number in a group message. A sent line stops after the recipient, without repeating the reply text, which can be long. The name is the sender's group card when they set one, otherwise their nickname; when both are empty, only the QQ number in parentheses is left. Text segments appear as they are, `at` segments as `@<QQ number>`, and other segments as `[<type>]`, such as `[image]` or `[face]`. drogon puts the time, the thread ID, and the level in front of each line. A message that fails to send is logged at ERROR level instead.
 
 **Commands.** A message that is exactly a command is answered by the bot itself, without the model:
 

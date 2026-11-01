@@ -152,21 +152,19 @@ namespace common {
     /**
      * @brief Describe a private message that the bot sent in one log line.
      *
-     * The line is `(<self_id>) 发送 -> 私聊 <nickname>(<user_id>) <text>`, in the form of
-     * `describe_received()`.
+     * The line is `(<self_id>) 发送 -> 私聊 <nickname>(<user_id>)`, in the form of
+     * `describe_received()`. The sent text is omitted because a reply can be long.
      * @param self_id QQ number of the bot account.
      * @param user_id QQ number of the recipient.
      * @param nickname Nickname of the recipient; may be empty.
-     * @param text Text that was sent.
      * @return The line.
      */
     auto describe_sent(
         std::int64_t self_id,
         std::int64_t user_id,
-        std::string_view nickname,
-        std::string_view text
+        std::string_view nickname
     ) -> std::string {
-        return std::format("({}) 发送 -> 私聊 {}({}) {}", self_id, nickname, user_id, text);
+        return std::format("({}) 发送 -> 私聊 {}({})", self_id, nickname, user_id);
     }
 
     /**

@@ -334,7 +334,7 @@ namespace workflow {
             co_await appendMessage(peer, "outgoing", std::move(display), "failed", sent.error().message);
         } else {
             result["message_id"] = std::to_string(sent->message_id);
-            LOG_INFO << common::describe_sent(peer.self_id, peer.user_id, peer.nickname, display);
+            LOG_INFO << common::describe_sent(peer.self_id, peer.user_id, peer.nickname);
             co_await appendMessage(peer, "outgoing", std::move(display), "sent", {});
         }
         co_return result;

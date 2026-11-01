@@ -62,8 +62,8 @@ DROGON_TEST(DescribeReceivedGroupMessage) {
 }
 
 DROGON_TEST(DescribeSentPrivateMessage) {
-    CHECK(common::describe_sent(10000, 20001, "张三", "你好！") == "(10000) 发送 -> 私聊 张三(20001) 你好！");
-    CHECK(common::describe_sent(10000, 20001, "", "你好！") == "(10000) 发送 -> 私聊 (20001) 你好！");
+    CHECK(common::describe_sent(10000, 20001, "张三") == "(10000) 发送 -> 私聊 张三(20001)");
+    CHECK(common::describe_sent(10000, 20001, "") == "(10000) 发送 -> 私聊 (20001)");
 }
 
 DROGON_TEST(ExtractTextJoinsTextSegments) {
