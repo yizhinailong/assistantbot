@@ -25,7 +25,15 @@ DROGON_TEST(SchedulerRetainsRecoveryAndAdvancesDailyWithoutReplaying) {
     auto one{ drogon::sync_wait(scheduler->Create({ .user_id = 66002 }, common::unix_seconds() + 3600, "once", false)) };
     auto daily{ drogon::sync_wait(scheduler->Create({ .user_id = 66003 }, common::unix_seconds() + 3600, "daily", true)) };
     auto const missed{ common::unix_seconds() - 2 * 86400 };
-    drogon::sync_wait(storage::query(database, "UPDATE scheduled_tasks SET due_at=? WHERE id IN (?,?)", missed, std::stoll(one["id"].asString()), std::stoll(daily["id"].asString())));
+    drogon::sync_wait(storage::query(database,
+                                     R"(
+            UPDATE scheduled_tasks
+            SET due_at = ?
+            WHERE id IN (?, ?)
+        )",
+                                     missed,
+                                     std::stoll(one["id"].asString()),
+                                     std::stoll(daily["id"].asString())));
     auto wake{ drogon::sync_wait(scheduler->Create({ .user_id = 66004 }, common::unix_seconds() + 3600, "wake", false)) };
     auto first{ deliveries.Pop(std::chrono::seconds{ 5 }) };
     auto second{ deliveries.Pop(std::chrono::seconds{ 5 }) };
@@ -53,7 +61,19 @@ auto main(int argc, char** argv) -> int {
     auto const directory{ std::filesystem::temp_directory_path() / "assistantbot-test" / "durable-scheduler" };
     std::filesystem::remove_all(directory);
     database = storage::open_database(directory);
-    database->execSqlSync("INSERT INTO scheduled_tasks(session_id,sender_id,due_at,content,daily,status,error,created_at) VALUES(66001,66001,1,'interrupted',0,'running','',1)");
+    database->execSqlSync(R"(
+        INSERT INTO scheduled_tasks (
+            session_id,
+            sender_id,
+            due_at,
+            content,
+            daily,
+            status,
+            error,
+            created_at
+        )
+        VALUES (66001, 66001, 1, 'interrupted', 0, 'running', '', 1)
+    )");
     scheduler = std::make_shared<workflow::ScheduledTasks>(database, [](workflow::Peer, std::string content) -> drogon::Task<> {deliveries.Push(std::move(content));co_return; });
     scheduler->Start();
     auto result{ test_support::run_tests_with_app(argc, argv, [] {scheduler->Stop();for(int i{};i<200&&scheduler->Busy();++i){std::this_thread::sleep_for(std::chrono::milliseconds{10});} }) };

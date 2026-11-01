@@ -44,7 +44,35 @@ namespace storage {
         drogon::orm::DbClientPtr db,
         ChatMessage message
     ) -> drogon::Task<Json::Value> {
-        auto const saved{ co_await query(db, "INSERT INTO chat_messages (timestamp, user_id, nickname, direction, content, status, error, sender_id, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *", message.timestamp, message.user_id, message.nickname, message.direction, message.content, message.status, message.error, message.sender_id, message.group_id) };
+        auto const saved{
+            co_await query(
+                db,
+                R"(
+                    INSERT INTO chat_messages (
+                        timestamp,
+                        user_id,
+                        nickname,
+                        direction,
+                        content,
+                        status,
+                        error,
+                        sender_id,
+                        group_id
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    RETURNING *
+                )",
+                message.timestamp,
+                message.user_id,
+                message.nickname,
+                message.direction,
+                message.content,
+                message.status,
+                message.error,
+                message.sender_id,
+                message.group_id
+            )
+        };
         co_return message_json(saved.at(0));
     }
 
@@ -65,7 +93,37 @@ namespace storage {
         std::optional<std::int64_t> before,
         std::optional<std::int64_t> after
     ) -> drogon::Task<Json::Value> {
-        auto const rows{ after ? co_await query(db, "SELECT * FROM chat_messages WHERE user_id = ? AND id > ? ORDER BY id ASC LIMIT ?", user_id, *after, limit + 1) : co_await query(db, "SELECT * FROM chat_messages WHERE user_id = ? AND id < ? ORDER BY id DESC LIMIT ?", user_id, before.value_or(INT64_MAX), limit + 1) };
+        auto const rows{
+            after ?
+                co_await query(
+                    db,
+                    R"(
+                        SELECT *
+                        FROM chat_messages
+                        WHERE user_id = ?
+                            AND id > ?
+                        ORDER BY id ASC
+                        LIMIT ?
+                    )",
+                    user_id,
+                    *after,
+                    limit + 1
+                ) :
+                co_await query(
+                    db,
+                    R"(
+                        SELECT *
+                        FROM chat_messages
+                        WHERE user_id = ?
+                            AND id < ?
+                        ORDER BY id DESC
+                        LIMIT ?
+                    )",
+                    user_id,
+                    before.value_or(INT64_MAX),
+                    limit + 1
+                )
+        };
         std::vector<Json::Value> messages{};
         for (auto const& row : rows) {
             if (messages.size() == static_cast<std::size_t>(limit)) {
@@ -98,7 +156,27 @@ namespace storage {
         drogon::orm::DbClientPtr db,
         std::optional<std::int64_t> user_id
     ) -> drogon::Task<Json::Value> {
-        auto const rows{ co_await query(db, "SELECT user_id, nickname, timestamp AS last_active FROM chat_messages WHERE id IN (SELECT max(id) FROM chat_messages WHERE (? IS NULL OR user_id = ?) GROUP BY user_id) ORDER BY timestamp DESC, user_id ASC", user_id, user_id) };
+        auto const rows{
+            co_await query(
+                db,
+                R"(
+                    SELECT
+                        user_id,
+                        nickname,
+                        timestamp AS last_active
+                    FROM chat_messages
+                    WHERE id IN (
+                        SELECT MAX(id)
+                        FROM chat_messages
+                        WHERE (? IS NULL OR user_id = ?)
+                        GROUP BY user_id
+                    )
+                    ORDER BY timestamp DESC, user_id ASC
+                )",
+                user_id,
+                user_id
+            )
+        };
         Json::Value peers{ Json::arrayValue };
         for (auto const& row : rows) {
             Json::Value peer{ Json::objectValue };

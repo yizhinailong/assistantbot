@@ -382,7 +382,11 @@ namespace {
         auto const chat{ drogon::app().getPlugin<app::Application>()->Bot().Chat() };
         auto const deadline{ std::chrono::steady_clock::now() + REPLY_WAIT };
         while (std::chrono::steady_clock::now() < deadline) {
-            auto const rows{ db->execSqlSync("SELECT count(*) AS n FROM chat_messages WHERE direction = 'outgoing'") };
+            auto const rows{ db->execSqlSync(R"(
+                SELECT COUNT(*) AS n
+                FROM chat_messages
+                WHERE direction = 'outgoing'
+            )") };
             auto const sessions{ chat->Sessions() };
             if (rows.at(0)["n"].as<std::size_t>() >= g_sent.Count() && std::ranges::none_of(sessions, [](auto const& session) { return session.busy; })) {
                 for (std::size_t i{}; i < drogon::app().getThreadNum(); ++i) {
@@ -659,7 +663,12 @@ DROGON_TEST(RecordsTypedDeepSeekAndZeroCacheTokens) {
     }
     wait_messages(20103, 6);
     auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
-    auto const rows{ db->execSqlSync("SELECT cached_tokens FROM model_usage WHERE user_id = 20103 ORDER BY id") };
+    auto const rows{ db->execSqlSync(R"(
+        SELECT cached_tokens
+        FROM model_usage
+        WHERE user_id = 20103
+        ORDER BY id
+    )") };
     REQUIRE(rows.size() == 3);
     CHECK(rows[0]["cached_tokens"].as<std::int64_t>() == 3);
     CHECK(rows[1]["cached_tokens"].as<std::int64_t>() == 4);

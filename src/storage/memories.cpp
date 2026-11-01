@@ -56,7 +56,21 @@ namespace storage {
         if (limit < 1 || limit > 2000) {
             throw std::invalid_argument{ "memory query limit must be in [1, 2000]" };
         }
-        auto const rows{ co_await query(db, "SELECT * FROM memories WHERE (? IS NULL OR session_id = ?) ORDER BY id DESC LIMIT ?", session, session, limit) };
+        auto const rows{
+            co_await query(
+                db,
+                R"(
+                    SELECT *
+                    FROM memories
+                    WHERE (? IS NULL OR session_id = ?)
+                    ORDER BY id DESC
+                    LIMIT ?
+                )",
+                session,
+                session,
+                limit
+            )
+        };
         Json::Value result{ Json::arrayValue };
         for (auto const& row : rows) {
             result.append(memory_json(row));
@@ -96,7 +110,60 @@ namespace storage {
         writer["indentation"] = "";
         auto const encoded{ Json::writeString(writer, embedding) };
         auto const now{ common::unix_seconds() };
-        auto const rows{ id ? co_await query(db, "UPDATE memories SET content = ?, embedding = ?, embedding_space = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND session_id = ? AND revision = ? RETURNING *", content, encoded, space, now, *id, session, revision) : co_await query(db, "INSERT INTO memories (session_id, content, embedding, embedding_space, revision, created_at, updated_at) SELECT ?, ?, ?, ?, 1, ?, ? WHERE (SELECT count(*) FROM memories WHERE session_id = ?) < 2000 RETURNING *", session, content, encoded, space, now, now, session) };
+        auto const rows{
+            id ?
+                co_await query(
+                    db,
+                    R"(
+                        UPDATE memories
+                        SET
+                            content = ?,
+                            embedding = ?,
+                            embedding_space = ?,
+                            revision = revision + 1,
+                            updated_at = ?
+                        WHERE id = ?
+                            AND session_id = ?
+                            AND revision = ?
+                        RETURNING *
+                    )",
+                    content,
+                    encoded,
+                    space,
+                    now,
+                    *id,
+                    session,
+                    revision
+                ) :
+                co_await query(
+                    db,
+                    R"(
+                        INSERT INTO memories (
+                            session_id,
+                            content,
+                            embedding,
+                            embedding_space,
+                            revision,
+                            created_at,
+                            updated_at
+                        )
+                        SELECT ?, ?, ?, ?, 1, ?, ?
+                        WHERE (
+                            SELECT COUNT(*)
+                            FROM memories
+                            WHERE session_id = ?
+                        ) < 2000
+                        RETURNING *
+                    )",
+                    session,
+                    content,
+                    encoded,
+                    space,
+                    now,
+                    now,
+                    session
+                )
+        };
         if (rows.empty()) {
             throw std::runtime_error{ "memory changed or conversation memory limit reached; refresh before saving" };
         }
@@ -117,7 +184,23 @@ namespace storage {
         std::optional<std::int64_t> session,
         std::optional<std::int64_t> revision
     ) -> drogon::Task<bool> {
-        auto const rows{ co_await query(db, "DELETE FROM memories WHERE id = ? AND (? IS NULL OR session_id = ?) AND (? IS NULL OR revision = ?) RETURNING id", id, session, session, revision, revision) };
+        auto const rows{
+            co_await query(
+                db,
+                R"(
+                    DELETE FROM memories
+                    WHERE id = ?
+                        AND (? IS NULL OR session_id = ?)
+                        AND (? IS NULL OR revision = ?)
+                    RETURNING id
+                )",
+                id,
+                session,
+                session,
+                revision,
+                revision
+            )
+        };
         co_return !rows.empty();
     }
 } // namespace storage

@@ -33,41 +33,126 @@ namespace storage {
             static std::vector<Migration> const list{
                 // 1: settings saved by the admin pages; `value` is a JSON document.
                 {
-                    "CREATE TABLE settings (name TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL) STRICT",
+                    R"(
+                        CREATE TABLE settings (
+                            name TEXT PRIMARY KEY NOT NULL,
+                            value TEXT NOT NULL
+                        ) STRICT
+                    )",
                 },
                 // 2: append each completed model request for the overview's daily totals.
                 {
-                    "CREATE TABLE model_usage (id INTEGER PRIMARY KEY, timestamp INTEGER NOT NULL, user_id INTEGER NOT NULL, model TEXT NOT NULL, succeeded INTEGER NOT NULL CHECK (succeeded IN (0, 1)), prompt_tokens INTEGER, completion_tokens INTEGER, total_tokens INTEGER) STRICT",
-                    "CREATE INDEX model_usage_timestamp ON model_usage (timestamp)",
+                    R"(
+                        CREATE TABLE model_usage (
+                            id INTEGER PRIMARY KEY,
+                            timestamp INTEGER NOT NULL,
+                            user_id INTEGER NOT NULL,
+                            model TEXT NOT NULL,
+                            succeeded INTEGER NOT NULL CHECK (succeeded IN (0, 1)),
+                            prompt_tokens INTEGER,
+                            completion_tokens INTEGER,
+                            total_tokens INTEGER
+                        ) STRICT
+                    )",
+                    R"(
+                        CREATE INDEX model_usage_timestamp
+                        ON model_usage (timestamp)
+                    )",
                 },
                 // 3: retain every private friend message independently of model context.
                 {
-                    "CREATE TABLE chat_messages (id INTEGER PRIMARY KEY, timestamp INTEGER NOT NULL, user_id INTEGER NOT NULL, nickname TEXT NOT NULL, direction TEXT NOT NULL CHECK (direction IN ('incoming', 'outgoing')), content TEXT NOT NULL, status TEXT NOT NULL, error TEXT NOT NULL) STRICT",
-                    "CREATE INDEX chat_messages_user_id_id ON chat_messages (user_id, id)",
+                    R"(
+                        CREATE TABLE chat_messages (
+                            id INTEGER PRIMARY KEY,
+                            timestamp INTEGER NOT NULL,
+                            user_id INTEGER NOT NULL,
+                            nickname TEXT NOT NULL,
+                            direction TEXT NOT NULL CHECK (direction IN ('incoming', 'outgoing')),
+                            content TEXT NOT NULL,
+                            status TEXT NOT NULL,
+                            error TEXT NOT NULL
+                        ) STRICT
+                    )",
+                    R"(
+                        CREATE INDEX chat_messages_user_id_id
+                        ON chat_messages (user_id, id)
+                    )",
                 },
                 // 4: keep vendor-neutral cache hit reports without rewriting old usage.
                 {
-                    "ALTER TABLE model_usage ADD COLUMN cached_tokens INTEGER",
+                    R"(
+                        ALTER TABLE model_usage
+                        ADD COLUMN cached_tokens INTEGER
+                    )",
                 },
                 // 5: editable agent documents use statement-level optimistic concurrency.
                 {
-                    "CREATE TABLE feature_records (kind TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision > 0), updated_at INTEGER NOT NULL, PRIMARY KEY (kind, key)) STRICT",
+                    R"(
+                        CREATE TABLE feature_records (
+                            kind TEXT NOT NULL,
+                            key TEXT NOT NULL,
+                            value TEXT NOT NULL,
+                            revision INTEGER NOT NULL CHECK (revision > 0),
+                            updated_at INTEGER NOT NULL,
+                            PRIMARY KEY (kind, key)
+                        ) STRICT
+                    )",
                 },
                 // 6: retain group recipients and actual senders while keeping context keys disjoint.
                 {
-                    "ALTER TABLE chat_messages ADD COLUMN sender_id INTEGER NOT NULL DEFAULT 0",
-                    "ALTER TABLE chat_messages ADD COLUMN group_id INTEGER NOT NULL DEFAULT 0",
-                    "UPDATE chat_messages SET sender_id = user_id",
+                    R"(
+                        ALTER TABLE chat_messages
+                        ADD COLUMN sender_id INTEGER NOT NULL DEFAULT 0
+                    )",
+                    R"(
+                        ALTER TABLE chat_messages
+                        ADD COLUMN group_id INTEGER NOT NULL DEFAULT 0
+                    )",
+                    R"(
+                        UPDATE chat_messages
+                        SET sender_id = user_id
+                    )",
                 },
                 // 7: portable vectors carry their endpoint/model space and document revisions.
                 {
-                    "CREATE TABLE memories (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER NOT NULL CHECK(session_id != 0), content TEXT NOT NULL, embedding TEXT NOT NULL, embedding_space TEXT NOT NULL, revision INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL) STRICT",
-                    "CREATE INDEX memories_session_id ON memories (session_id, id)",
+                    R"(
+                        CREATE TABLE memories (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            session_id INTEGER NOT NULL CHECK (session_id != 0),
+                            content TEXT NOT NULL,
+                            embedding TEXT NOT NULL,
+                            embedding_space TEXT NOT NULL,
+                            revision INTEGER NOT NULL,
+                            created_at INTEGER NOT NULL,
+                            updated_at INTEGER NOT NULL
+                        ) STRICT
+                    )",
+                    R"(
+                        CREATE INDEX memories_session_id
+                        ON memories (session_id, id)
+                    )",
                 },
                 // 8: UTC reminders survive restart and claim delivery at most once.
                 {
-                    "CREATE TABLE scheduled_tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER NOT NULL, sender_id INTEGER NOT NULL, due_at INTEGER NOT NULL, content TEXT NOT NULL, daily INTEGER NOT NULL CHECK(daily IN (0,1)), status TEXT NOT NULL CHECK(status IN ('pending','running','done','failed','cancelled')), error TEXT NOT NULL, created_at INTEGER NOT NULL) STRICT",
-                    "CREATE INDEX scheduled_tasks_due ON scheduled_tasks (status, due_at)",
+                    R"(
+                        CREATE TABLE scheduled_tasks (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            session_id INTEGER NOT NULL,
+                            sender_id INTEGER NOT NULL,
+                            due_at INTEGER NOT NULL,
+                            content TEXT NOT NULL,
+                            daily INTEGER NOT NULL CHECK (daily IN (0, 1)),
+                            status TEXT NOT NULL CHECK (
+                                status IN ('pending', 'running', 'done', 'failed', 'cancelled')
+                            ),
+                            error TEXT NOT NULL,
+                            created_at INTEGER NOT NULL
+                        ) STRICT
+                    )",
+                    R"(
+                        CREATE INDEX scheduled_tasks_due
+                        ON scheduled_tasks (status, due_at)
+                    )",
                 },
             };
             return list;
@@ -85,17 +170,17 @@ namespace storage {
             Migration const& migration,
             std::int64_t version
         ) -> void {
-            db.execSqlSync("BEGIN IMMEDIATE");
+            db.execSqlSync(R"(BEGIN IMMEDIATE)");
             try {
                 for (auto const* statement : migration) {
                     db.execSqlSync(statement);
                 }
                 // PRAGMA takes no bound parameters.
-                db.execSqlSync(std::format("PRAGMA user_version = {}", version));
-                db.execSqlSync("COMMIT");
+                db.execSqlSync(std::format(R"(PRAGMA user_version = {})", version));
+                db.execSqlSync(R"(COMMIT)");
             } catch (...) {
                 try {
-                    db.execSqlSync("ROLLBACK");
+                    db.execSqlSync(R"(ROLLBACK)");
                 } catch (std::exception const&) {
                     // SQLite may have rolled back already; the first error is the one to report.
                 }
@@ -120,7 +205,7 @@ namespace storage {
      * @throws drogon::orm::DrogonDbException If the statement fails.
      */
     auto schema_version(drogon::orm::DbClient& db) -> std::int64_t {
-        auto const result{ db.execSqlSync("PRAGMA user_version") };
+        auto const result{ db.execSqlSync(R"(PRAGMA user_version)") };
         return result.at(0)["user_version"].as<std::int64_t>();
     }
 

@@ -19,11 +19,24 @@ DROGON_TEST(UsageSurvivesMigrationAndReopening) {
             "filename='" + (directory / storage::DATABASE_FILE).string() + "'",
             1
         ) };
-        client->execSqlSync("CREATE TABLE settings (name TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL) STRICT");
-        client->execSqlSync("INSERT INTO settings VALUES ('bot', '{}')");
-        client->execSqlSync("PRAGMA user_version = 1");
+        client->execSqlSync(R"(
+            CREATE TABLE settings (
+                name TEXT PRIMARY KEY NOT NULL,
+                value TEXT NOT NULL
+            ) STRICT
+        )");
+        client->execSqlSync(R"(
+            INSERT INTO settings
+            VALUES ('bot', '{}')
+        )");
+        client->execSqlSync(R"(PRAGMA user_version = 1)");
         storage::migrate(*client);
-        CHECK(client->execSqlSync("SELECT count(*) AS n FROM settings").at(0)["n"].as<int>() == 1);
+        CHECK(client->execSqlSync(R"(
+            SELECT COUNT(*) AS n
+            FROM settings
+        )")
+                  .at(0)["n"]
+                  .as<int>() == 1);
 
         // Include the start of the day, exclude the start of the next day.
         for (auto const timestamp : { 86399, 86400, 172799, 172800 }) {
@@ -67,13 +80,39 @@ DROGON_TEST(UsageSurvivesMigrationAndReopening) {
 DROGON_TEST(UsageMigrationKeepsExistingReportsWithUnknownCacheHits) {
     auto const directory{ test_support::fresh_directory("usage-schema-two") };
     auto const db{ drogon::orm::DbClient::newSqlite3Client("filename='" + (directory / storage::DATABASE_FILE).string() + "'", 1) };
-    db->execSqlSync("CREATE TABLE settings (name TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL) STRICT");
-    db->execSqlSync("CREATE TABLE model_usage (id INTEGER PRIMARY KEY, timestamp INTEGER NOT NULL, user_id INTEGER NOT NULL, model TEXT NOT NULL, succeeded INTEGER NOT NULL CHECK (succeeded IN (0, 1)), prompt_tokens INTEGER, completion_tokens INTEGER, total_tokens INTEGER) STRICT");
-    db->execSqlSync("CREATE INDEX model_usage_timestamp ON model_usage (timestamp)");
-    db->execSqlSync("INSERT INTO model_usage VALUES (1, 86400, 42, 'old-model', 1, 5, 3, 8)");
-    db->execSqlSync("PRAGMA user_version = 2");
+    db->execSqlSync(R"(
+        CREATE TABLE settings (
+            name TEXT PRIMARY KEY NOT NULL,
+            value TEXT NOT NULL
+        ) STRICT
+    )");
+    db->execSqlSync(R"(
+        CREATE TABLE model_usage (
+            id INTEGER PRIMARY KEY,
+            timestamp INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            model TEXT NOT NULL,
+            succeeded INTEGER NOT NULL CHECK (succeeded IN (0, 1)),
+            prompt_tokens INTEGER,
+            completion_tokens INTEGER,
+            total_tokens INTEGER
+        ) STRICT
+    )");
+    db->execSqlSync(R"(
+        CREATE INDEX model_usage_timestamp
+        ON model_usage (timestamp)
+    )");
+    db->execSqlSync(R"(
+        INSERT INTO model_usage
+        VALUES (1, 86400, 42, 'old-model', 1, 5, 3, 8)
+    )");
+    db->execSqlSync(R"(PRAGMA user_version = 2)");
     storage::migrate(*db);
-    auto const old{ db->execSqlSync("SELECT * FROM model_usage WHERE id = 1") };
+    auto const old{ db->execSqlSync(R"(
+        SELECT *
+        FROM model_usage
+        WHERE id = 1
+    )") };
     REQUIRE(old.size() == 1);
     CHECK(old[0]["model"].as<std::string>() == "old-model");
     CHECK(old[0]["cached_tokens"].isNull());

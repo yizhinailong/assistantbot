@@ -208,15 +208,25 @@ DROGON_TEST(AccessApiReportsSaveFailuresAndConflicts) {
     auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
     auto const access{ drogon::app().getPlugin<app::Application>()->Bot().Access() };
     auto const before{ access->Current() };
-    db->execSqlSync("PRAGMA query_only = ON");
+    db->execSqlSync(R"(PRAGMA query_only = ON)");
     auto const failed{ request_admin("/api/admin/blacklist", drogon::Post, field("qq", "88888")) };
-    db->execSqlSync("PRAGMA query_only = OFF");
+    db->execSqlSync(R"(PRAGMA query_only = OFF)");
     CHECK(failed->statusCode() == drogon::k500InternalServerError);
     CHECK(access->Current() == before);
 
     std::promise<void> slow_done{};
     db->execSqlAsync(
-        "WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM n WHERE x < 5000000) SELECT count(*) FROM n",
+        R"(
+            WITH RECURSIVE n(x) AS (
+                SELECT 1
+                UNION ALL
+                SELECT x + 1
+                FROM n
+                WHERE x < 5000000
+            )
+            SELECT COUNT(*)
+            FROM n
+        )",
         [&slow_done](drogon::orm::Result const&) { slow_done.set_value(); },
         [&slow_done](drogon::orm::DrogonDbException const&) { slow_done.set_value(); }
     );

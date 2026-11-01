@@ -40,7 +40,14 @@ DROGON_TEST(DueTasksRecheckPauseAndRecordFailureOnce) {
     bot->SetPaused(true);
     auto task{ drogon::sync_wait(bot->Tasks()->Create({ .user_id = 44002 }, common::unix_seconds() + 3600, "must not send", false)) };
     auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
-    drogon::sync_wait(storage::query(db, "UPDATE scheduled_tasks SET due_at = ? WHERE id = ?", common::unix_seconds() - 1, std::stoll(task["id"].asString())));
+    drogon::sync_wait(storage::query(db,
+                                     R"(
+            UPDATE scheduled_tasks
+            SET due_at = ?
+            WHERE id = ?
+        )",
+                                     common::unix_seconds() - 1,
+                                     std::stoll(task["id"].asString())));
     // Create wakes polling after the test moves the prior deadline into the past.
     auto wake{ drogon::sync_wait(bot->Tasks()->Create({ .user_id = 44003 }, common::unix_seconds() + 3600, "wake", false)) };
     std::string status{};

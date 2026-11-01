@@ -29,7 +29,16 @@ namespace storage {
         drogon::orm::DbClient& db,
         std::string const& name
     ) -> std::optional<Json::Value> {
-        auto const result{ db.execSqlSync("SELECT value FROM settings WHERE name = ?", name) };
+        auto const result{
+            db.execSqlSync(
+                R"(
+                    SELECT value
+                    FROM settings
+                    WHERE name = ?
+                )",
+                name
+            )
+        };
         if (result.empty()) {
             return std::nullopt;
         }
@@ -59,7 +68,17 @@ namespace storage {
         Json::StreamWriterBuilder builder{};
         builder["indentation"] = "";
         auto const text{ Json::writeString(builder, value) };
-        co_await query(db, "INSERT INTO settings (name, value) VALUES (?, ?) ON CONFLICT (name) DO UPDATE SET value = excluded.value", name, text);
+        co_await query(
+            db,
+            R"(
+                INSERT INTO settings (name, value)
+                VALUES (?, ?)
+                ON CONFLICT (name) DO UPDATE
+                SET value = excluded.value
+            )",
+            name,
+            text
+        );
     }
 
 } // namespace storage

@@ -65,14 +65,20 @@ DROGON_TEST(SessionListIncludesStoredPeersAndResetPreservesChatRecords) {
 
 DROGON_TEST(SessionStorageFailuresReturnJsonErrors) {
     auto const db{ drogon::app().getPlugin<app::Application>()->Database().Client() };
-    db->execSqlSync("ALTER TABLE chat_messages RENAME TO unavailable_messages");
+    db->execSqlSync(R"(
+        ALTER TABLE chat_messages
+        RENAME TO unavailable_messages
+    )");
     for (auto const* path : { "/api/admin/sessions", "/api/admin/sessions/42", "/api/admin/sessions/42/messages" }) {
         auto const response{ test_support::request_admin(path) };
         CHECK(response->statusCode() == drogon::k500InternalServerError);
         REQUIRE(response->getJsonObject() != nullptr);
         CHECK((*response->getJsonObject())["error"].isString());
     }
-    db->execSqlSync("ALTER TABLE unavailable_messages RENAME TO chat_messages");
+    db->execSqlSync(R"(
+        ALTER TABLE unavailable_messages
+        RENAME TO chat_messages
+    )");
 }
 
 auto main(int argc, char** argv) -> int {

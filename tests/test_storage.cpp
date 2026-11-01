@@ -62,7 +62,7 @@ namespace {
     auto keeps_callers_loop(drogon::orm::DbClientPtr db) -> drogon::Task<bool> {
         auto* const origin{ drogon::app().getIOLoop(0) };
         co_await drogon::switchThreadCoro(origin);
-        auto const result{ co_await storage::query(db, "SELECT ? AS n", 42) };
+        auto const result{ co_await storage::query(db, R"(SELECT ? AS n)", 42) };
         bool on_origin{ trantor::EventLoop::getEventLoopOfCurrentThread() == origin && result.at(0)["n"].as<int>() == 42 };
         Json::Value value{ Json::objectValue };
         value["history_turns"] = 4;
@@ -70,7 +70,10 @@ namespace {
         on_origin = on_origin && trantor::EventLoop::getEventLoopOfCurrentThread() == origin;
         bool rejected{};
         try {
-            co_await storage::query(db, "SELECT * FROM nonexistent_loop_test_table");
+            co_await storage::query(db, R"(
+                SELECT *
+                FROM nonexistent_loop_test_table
+            )");
         } catch (drogon::orm::DrogonDbException const&) {
             rejected = true;
         }
@@ -127,7 +130,7 @@ DROGON_TEST(OpenRejectsUnopenableFile) {
 
 DROGON_TEST(RejectsNewerSchema) {
     auto const client{ storage::open_database(test_support::fresh_directory("newer")) };
-    client->execSqlSync("PRAGMA user_version = 99");
+    client->execSqlSync(R"(PRAGMA user_version = 99)");
     auto const expected{ std::format("storage::Database: the database has schema version 99, newer than the {} this build knows", storage::latest_schema_version()) };
     CHECK(migrate_error(*client) == expected);
 }
@@ -160,12 +163,20 @@ DROGON_TEST(SaveReplacesSetting) {
     auto const loaded{ storage::load_setting(*client, "bot") };
     REQUIRE(loaded.has_value());
     CHECK(*loaded == second);
-    CHECK(client->execSqlSync("SELECT count(*) AS n FROM settings").at(0)["n"].as<int>() == 1);
+    CHECK(client->execSqlSync(R"(
+        SELECT COUNT(*) AS n
+        FROM settings
+    )")
+              .at(0)["n"]
+              .as<int>() == 1);
 }
 
 DROGON_TEST(LoadRejectsInvalidJson) {
     auto const client{ storage::open_database(test_support::fresh_directory("invalid")) };
-    client->execSqlSync("INSERT INTO settings (name, value) VALUES ('bot', '{not json')");
+    client->execSqlSync(R"(
+        INSERT INTO settings (name, value)
+        VALUES ('bot', '{not json')
+    )");
     CHECK_THROWS_AS(storage::load_setting(*client, "bot"), std::runtime_error);
 }
 

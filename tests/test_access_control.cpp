@@ -81,11 +81,11 @@ DROGON_TEST(AccessSaveFailurePreservesPolicyAndReleasesWriteClaim) {
     auto const db{ storage::open_database(test_support::fresh_directory("access-failure")) };
     workflow::AccessControl access{ db };
     auto const initial{ access.Current() };
-    db->execSqlSync("PRAGMA query_only = ON");
+    db->execSqlSync(R"(PRAGMA query_only = ON)");
     CHECK_THROWS_AS(drogon::sync_wait(access.SetMode(workflow::AccessMode::Allowlist)), drogon::orm::DrogonDbException);
     CHECK(access.Current() == initial);
     CHECK(!storage::load_setting(*db, workflow::ACCESS_SETTINGS_NAME).has_value());
-    db->execSqlSync("PRAGMA query_only = OFF");
+    db->execSqlSync(R"(PRAGMA query_only = OFF)");
     drogon::sync_wait(access.SetMode(workflow::AccessMode::Allowlist));
     CHECK(!access.Current()->Allows(12345));
     auto const saved{ storage::load_setting(*db, workflow::ACCESS_SETTINGS_NAME) };
@@ -99,7 +99,17 @@ DROGON_TEST(AccessRejectsOverlappingChangesWithoutLosingUpdates) {
     auto const before{ access->Current() };
     std::promise<void> slow_done{};
     db->execSqlAsync(
-        "WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM n WHERE x < 1000000) SELECT count(*) FROM n",
+        R"(
+            WITH RECURSIVE n(x) AS (
+                SELECT 1
+                UNION ALL
+                SELECT x + 1
+                FROM n
+                WHERE x < 1000000
+            )
+            SELECT COUNT(*)
+            FROM n
+        )",
         [&slow_done](drogon::orm::Result const&) { slow_done.set_value(); },
         [&slow_done](drogon::orm::DrogonDbException const&) { slow_done.set_value(); }
     );

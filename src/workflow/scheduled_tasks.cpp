@@ -39,8 +39,20 @@ namespace workflow {
      */
     ScheduledTasks::ScheduledTasks(drogon::orm::DbClientPtr database, Handler handler)
         : m_database{ std::move(database) }, m_handler{ std::move(handler) } {
-        m_database->execSqlSync("UPDATE scheduled_tasks SET status = 'failed', error = 'interrupted by restart; delivery was not replayed' WHERE status = 'running'");
-        auto const rows{ m_database->execSqlSync("SELECT min(due_at) AS next FROM scheduled_tasks WHERE status = 'pending'") };
+        m_database->execSqlSync(R"(
+            UPDATE scheduled_tasks
+            SET
+                status = 'failed',
+                error = 'interrupted by restart; delivery was not replayed'
+            WHERE status = 'running'
+        )");
+        auto const rows{
+            m_database->execSqlSync(R"(
+                SELECT MIN(due_at) AS next
+                FROM scheduled_tasks
+                WHERE status = 'pending'
+            )")
+        };
         if (!rows[0]["next"].isNull()) {
             m_nextDue = rows[0]["next"].as<std::int64_t>();
         }
@@ -119,7 +131,38 @@ namespace workflow {
         if (session == 0 || content.empty() || content.size() > 8192 || due_at <= now || due_at > now + 366 * 86400LL) {
             throw std::invalid_argument{ "task requires a conversation, 1..8192 bytes of text, and a UTC time within the next 366 days" };
         }
-        auto const rows{ co_await storage::query(m_database, "INSERT INTO scheduled_tasks (session_id, sender_id, due_at, content, daily, status, error, created_at) SELECT ?, ?, ?, ?, ?, 'pending', '', ? WHERE (SELECT count(*) FROM scheduled_tasks WHERE session_id = ? AND status = 'pending') < 100 RETURNING *", session, peer.user_id, due_at, content, daily ? 1 : 0, now, session) };
+        auto const rows{
+            co_await storage::query(
+                m_database,
+                R"(
+                    INSERT INTO scheduled_tasks (
+                        session_id,
+                        sender_id,
+                        due_at,
+                        content,
+                        daily,
+                        status,
+                        error,
+                        created_at
+                    )
+                    SELECT ?, ?, ?, ?, ?, 'pending', '', ?
+                    WHERE (
+                        SELECT COUNT(*)
+                        FROM scheduled_tasks
+                        WHERE session_id = ?
+                            AND status = 'pending'
+                    ) < 100
+                    RETURNING *
+                )",
+                session,
+                peer.user_id,
+                due_at,
+                content,
+                daily ? 1 : 0,
+                now,
+                session
+            )
+        };
         if (rows.empty()) {
             throw std::runtime_error{ "conversation has reached the 100 pending task limit" };
         }
@@ -133,7 +176,20 @@ namespace workflow {
      * @return Up to 500 task records, newest first.
      */
     auto ScheduledTasks::List(std::optional<std::int64_t> session) -> drogon::Task<Json::Value> {
-        auto const rows{ co_await storage::query(m_database, "SELECT * FROM scheduled_tasks WHERE (? IS NULL OR session_id = ?) ORDER BY id DESC LIMIT 500", session, session) };
+        auto const rows{
+            co_await storage::query(
+                m_database,
+                R"(
+                    SELECT *
+                    FROM scheduled_tasks
+                    WHERE (? IS NULL OR session_id = ?)
+                    ORDER BY id DESC
+                    LIMIT 500
+                )",
+                session,
+                session
+            )
+        };
         Json::Value result{ Json::arrayValue };
         for (auto const& row : rows) {
             result.append(task_json(row));
@@ -151,7 +207,22 @@ namespace workflow {
         std::int64_t id,
         std::optional<std::int64_t> session
     ) -> drogon::Task<bool> {
-        auto const rows{ co_await storage::query(m_database, "UPDATE scheduled_tasks SET status = 'cancelled' WHERE id = ? AND status = 'pending' AND (? IS NULL OR session_id = ?) RETURNING id", id, session, session) };
+        auto const rows{
+            co_await storage::query(
+                m_database,
+                R"(
+                    UPDATE scheduled_tasks
+                    SET status = 'cancelled'
+                    WHERE id = ?
+                        AND status = 'pending'
+                        AND (? IS NULL OR session_id = ?)
+                    RETURNING id
+                )",
+                id,
+                session,
+                session
+            )
+        };
         wake();
         co_return !rows.empty();
     }
@@ -167,13 +238,38 @@ namespace workflow {
             revision = m_revision;
         }
         try {
-            auto const rows{ co_await storage::query(m_database, "SELECT * FROM scheduled_tasks WHERE status = 'pending' AND due_at <= ? ORDER BY due_at, id LIMIT 16", common::unix_seconds()) };
+            auto const rows{
+                co_await storage::query(
+                    m_database,
+                    R"(
+                        SELECT *
+                        FROM scheduled_tasks
+                        WHERE status = 'pending'
+                            AND due_at <= ?
+                        ORDER BY due_at, id
+                        LIMIT 16
+                    )",
+                    common::unix_seconds()
+                )
+            };
             for (auto const& row : rows) {
                 if (m_stopped.load()) {
                     break;
                 }
                 auto const id{ row["id"].as<std::int64_t>() };
-                auto const claimed{ co_await storage::query(m_database, "UPDATE scheduled_tasks SET status = 'running' WHERE id = ? AND status = 'pending' RETURNING id", id) };
+                auto const claimed{
+                    co_await storage::query(
+                        m_database,
+                        R"(
+                            UPDATE scheduled_tasks
+                            SET status = 'running'
+                            WHERE id = ?
+                                AND status = 'pending'
+                            RETURNING id
+                        )",
+                        id
+                    )
+                };
                 if (claimed.empty()) {
                     continue;
                 }
@@ -195,9 +291,33 @@ namespace workflow {
                 bool const repeat{ error.empty() && row["daily"].as<int>() != 0 };
                 auto const due{ row["due_at"].as<std::int64_t>() };
                 auto const next{ repeat ? due + ((common::unix_seconds() - due) / 86400 + 1) * 86400 : due };
-                co_await storage::query(m_database, "UPDATE scheduled_tasks SET status = ?, error = ?, due_at = ? WHERE id = ? AND status = 'running'", error.empty() ? (repeat ? "pending" : "done") : "failed", error.substr(0, 4096), next, id);
+                co_await storage::query(
+                    m_database,
+                    R"(
+                        UPDATE scheduled_tasks
+                        SET
+                            status = ?,
+                            error = ?,
+                            due_at = ?
+                        WHERE id = ?
+                            AND status = 'running'
+                    )",
+                    error.empty() ? (repeat ? "pending" : "done") : "failed",
+                    error.substr(0, 4096),
+                    next,
+                    id
+                );
             }
-            auto const next{ co_await storage::query(m_database, "SELECT min(due_at) AS next FROM scheduled_tasks WHERE status = 'pending'") };
+            auto const next{
+                co_await storage::query(
+                    m_database,
+                    R"(
+                        SELECT MIN(due_at) AS next
+                        FROM scheduled_tasks
+                        WHERE status = 'pending'
+                    )"
+                )
+            };
             std::lock_guard lock{ m_mutex };
             m_nextDue = revision != m_revision ? 0 : (next[0]["next"].isNull() ? INT64_MAX : next[0]["next"].as<std::int64_t>());
         } catch (std::exception const& error) {

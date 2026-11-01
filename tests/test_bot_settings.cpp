@@ -25,7 +25,17 @@ namespace {
      * @brief Query that keeps SQLite busy for a moment, so that statements sent after it wait.
      */
     constexpr char const* SLOW_QUERY{
-        "WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM n WHERE x < 1000000) SELECT count(*) FROM n"
+        R"(
+            WITH RECURSIVE n(x) AS (
+                SELECT 1
+                UNION ALL
+                SELECT x + 1
+                FROM n
+                WHERE x < 1000000
+            )
+            SELECT COUNT(*)
+            FROM n
+        )"
     };
 
     /**
