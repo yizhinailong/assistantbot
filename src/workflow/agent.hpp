@@ -62,9 +62,15 @@ namespace workflow {
             AgentSend send
         ) -> drogon::Task<AgentResult>;
         /**
+         * @brief Tell whether the vision role is currently enabled.
+         * @return Whether incoming images should be resolved and described.
+         */
+        auto VisionEnabled() const -> bool;
+
+        /**
          * @brief Describe accepted message images using the optional vision role.
          * @param peer Sender and recipient.
-         * @param urls Validated HTTP image URLs from this message.
+         * @param urls Vision-ready image locations from this message.
          * @param question Accompanying user question.
          * @return Description, or empty when vision is disabled or fails.
          */

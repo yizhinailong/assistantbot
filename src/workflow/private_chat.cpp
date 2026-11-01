@@ -4,6 +4,8 @@
  */
 #include "workflow/private_chat.hpp"
 
+#include <charconv>
+#include <optional>
 #include <utility>
 
 #include <drogon/drogon.h>
@@ -15,6 +17,7 @@
 #include "storage/usage.hpp"
 #include "workflow/access_control.hpp"
 #include "workflow/agent.hpp"
+#include "workflow/image_source.hpp"
 
 namespace workflow {
 
@@ -44,6 +47,125 @@ namespace workflow {
                 LOG_ERROR << "Chat completion for " << user_id << " has a blank reply";
             }
             return text;
+        }
+
+        /**
+         * @brief One received image's event fields.
+         */
+        struct ImageSource {
+            std::string url;  ///< `url` field, for example an HTTP URL or `base64://` data.
+            std::string file; ///< `file` field that identifies the image to the OneBot implementation.
+        };
+
+        /**
+         * @brief Collect image locations from one message, bounded per reply.
+         * @param message Message segments.
+         * @param sources Output list; existing entries are kept.
+         */
+        auto collect_image_sources(drogon_onebot::Message const& message, std::vector<ImageSource>& sources) -> void {
+            for (auto const& segment : message) {
+                if (segment.type != "image" || sources.size() >= MAX_MESSAGE_IMAGES * 2) {
+                    continue;
+                }
+                ImageSource source{};
+                if (segment.data["url"].isString()) {
+                    source.url = segment.data["url"].asString();
+                }
+                if (segment.data["file"].isString()) {
+                    source.file = segment.data["file"].asString();
+                }
+                if (!source.url.empty() || !source.file.empty()) {
+                    sources.push_back(std::move(source));
+                }
+            }
+        }
+
+        /**
+         * @brief Read the ID of the message that this message quotes.
+         * @param message Message segments.
+         * @return Positive message ID, or empty when the message quotes nothing.
+         */
+        auto quoted_message_id(drogon_onebot::Message const& message) -> std::optional<std::int32_t> {
+            for (auto const& segment : message) {
+                if (segment.type != "reply" || !segment.data["id"].isString()) {
+                    continue;
+                }
+                auto const text{ segment.data["id"].asString() };
+                std::int32_t id{};
+                auto const [end, error]{ std::from_chars(text.data(), text.data() + text.size(), id) };
+                if (error == std::errc{} && end == text.data() + text.size() && id > 0) {
+                    return id;
+                }
+            }
+            return std::nullopt;
+        }
+
+        /**
+         * @brief Turn one received image into a vision-ready location.
+         *
+         * HTTP and `base64://` locations are handled directly. Anything else is fetched with
+         * `get_image`, preferring the returned HTTP URL, then its base64 content, then a local
+         * file on this host.
+         * @param onebot OneBot client.
+         * @param source Image event fields.
+         * @return Vision-ready location, or empty when the source cannot be read.
+         */
+        auto resolve_image_source(drogon_onebot::OneBot onebot, ImageSource source) -> drogon::Task<std::optional<std::string>> {
+            if (vision_image_url(source.url)) {
+                co_return source.url;
+            }
+            if (source.url.starts_with("base64://")) {
+                if (auto data{ image_data_url(std::string_view{ source.url }.substr(9)) }) {
+                    co_return std::move(*data);
+                }
+            }
+            if (vision_image_url(source.file)) {
+                co_return source.file;
+            }
+            if (source.file.starts_with("base64://")) {
+                if (auto data{ image_data_url(std::string_view{ source.file }.substr(9)) }) {
+                    co_return std::move(*data);
+                }
+            }
+            if (auto data{ image_file_url(source.url) }) {
+                co_return std::move(*data);
+            }
+            if (auto data{ image_file_url(source.file) }) {
+                co_return std::move(*data);
+            }
+            auto const file{ !source.file.empty() ? source.file : source.url };
+            if (file.empty()) {
+                co_return std::nullopt;
+            }
+            auto const fetched{ co_await onebot.GetImage({ .file = file, .timeout = 10.0 }) };
+            if (!fetched) {
+                LOG_WARN << "Fetching image " << file << " failed: " << fetched.error().message;
+                co_return std::nullopt;
+            }
+            if (fetched->raw["url"].isString()) {
+                auto const& url{ fetched->raw["url"].asString() };
+                if (vision_image_url(url)) {
+                    co_return url;
+                }
+                if (url.starts_with("base64://")) {
+                    if (auto data{ image_data_url(std::string_view{ url }.substr(9)) }) {
+                        co_return std::move(*data);
+                    }
+                }
+            }
+            if (fetched->raw["base64"].isString()) {
+                auto text{ fetched->raw["base64"].asString() };
+                if (text.starts_with("base64://")) {
+                    text.erase(0, 9);
+                }
+                if (auto data{ image_data_url(text) }) {
+                    co_return std::move(*data);
+                }
+            }
+            if (auto data{ image_file_url(fetched->file) }) {
+                co_return std::move(*data);
+            }
+            co_return std::nullopt;
         }
 
     } // namespace
@@ -286,6 +408,53 @@ namespace workflow {
      */
     auto PrivateChat::SetAgent(std::shared_ptr<AgentRuntime> agent) -> void {
         m_agent = std::move(agent);
+    }
+
+    /**
+     * @brief Resolve accepted images, including those quoted by a reply, for the vision role.
+     *
+     * HTTP and `base64://` sources are kept or converted directly; other sources are
+     * fetched through the OneBot implementation. At most four images are returned, and
+     * a source that fails is skipped.
+     * @param peer Sender and recipient, used to restrict quoted messages to this chat.
+     * @param message Accepted incoming message.
+     * @return Vision-ready HTTP or data URLs.
+     */
+    auto PrivateChat::ResolveImages(Peer peer, drogon_onebot::Message message) -> drogon::Task<std::vector<std::string>> {
+        if (!m_agent || !m_agent->VisionEnabled()) {
+            co_return std::vector<std::string>{};
+        }
+        std::vector<ImageSource> sources{};
+        collect_image_sources(message, sources);
+        if (auto const quoted{ quoted_message_id(message) }; quoted && sources.size() < MAX_MESSAGE_IMAGES) {
+            auto const fetched{ co_await m_onebot.GetMsg({ .message_id = *quoted, .timeout = 10.0 }) };
+            if (!fetched) {
+                LOG_WARN << "Fetching quoted message " << *quoted << " failed: " << fetched.error().message;
+            } else {
+                bool const same_chat{
+                    peer.group_id == 0 ?
+                        fetched->message_type == "private" :
+                        fetched->group_id && *fetched->group_id == peer.group_id
+                };
+                if (same_chat) {
+                    collect_image_sources(fetched->message, sources);
+                }
+            }
+        }
+        std::vector<std::string> urls{};
+        std::size_t total{};
+        for (auto const& source : sources) {
+            if (urls.size() >= MAX_MESSAGE_IMAGES || total >= MAX_MESSAGE_IMAGE_DATA_BYTES) {
+                break;
+            }
+            auto url{ co_await resolve_image_source(m_onebot, std::move(source)) };
+            if (!url || url->size() > MAX_MESSAGE_IMAGE_DATA_BYTES - total) {
+                continue;
+            }
+            total += url->size();
+            urls.push_back(std::move(*url));
+        }
+        co_return urls;
     }
 
     /**

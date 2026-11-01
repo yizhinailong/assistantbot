@@ -126,11 +126,16 @@ namespace controllers {
                     co_return;
                 }
             }
-            for (auto const& segment : event.message) {
-                if (segment.type == "image" && peer.image_urls.size() < 4 && segment.data["url"].isString()) {
-                    peer.image_urls.push_back(segment.data["url"].asString());
-                }
+            if (text == HELP_COMMAND) {
+                co_await chat->Send(peer, HELP_REPLY);
+                co_return;
             }
+            if (text == RESET_COMMAND) {
+                chat->Reset(workflow::conversation_id(peer));
+                co_await chat->Send(peer, RESET_REPLY);
+                co_return;
+            }
+            peer.image_urls = co_await chat->ResolveImages(peer, event.message);
             if (!peer.image_urls.empty()) {
                 auto description{ co_await chat->DescribeImages(peer, text) };
                 if (!description.empty()) {
@@ -139,15 +144,6 @@ namespace controllers {
             }
             if (text.empty()) {
                 co_await chat->Send(peer, TEXT_ONLY_REPLY);
-                co_return;
-            }
-            if (text == HELP_COMMAND) {
-                co_await chat->Send(peer, HELP_REPLY);
-                co_return;
-            }
-            if (text == RESET_COMMAND) {
-                chat->Reset(workflow::conversation_id(peer));
-                co_await chat->Send(peer, RESET_REPLY);
                 co_return;
             }
             if (group_message && group.get("include_card", true).asBool()) {

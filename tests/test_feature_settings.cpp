@@ -14,6 +14,8 @@ DROGON_TEST(FeatureSettingsKeepSnapshotsAndRejectStaleSaves) {
     workflow::FeatureSettings settings{ db };
     auto const initial{ settings.Current() };
     CHECK((*initial)["groups"].empty());
+    CHECK((*initial)["models"]["vision"]["enabled"].asBool());
+    CHECK(!(*initial)["models"]["executor"]["enabled"].asBool());
     CHECK(!(*initial)["tools"]["enabled"].asBool());
     Json::Value groups{ Json::objectValue };
     groups["123"]["enabled"] = true;

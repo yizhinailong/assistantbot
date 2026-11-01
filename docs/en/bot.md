@@ -128,7 +128,7 @@ The number at the start is the QQ account the bot is logged in as. Then comes th
 | `/help` | Replies with a short help text |
 | `/reset` | Clears the sender's history and queued messages, then confirms |
 
-**Images and other media.** With the optional vision role enabled, up to four HTTP images in an accepted message are described before queuing the prompt. Without a usable vision description or text, the existing text-only notice applies. Other media are represented only by placeholders in stored chat records.
+**Images and other media.** The vision role starts enabled. Up to four images in an accepted message, including images in the message a user quotes, are described before queuing the prompt. HTTP URLs, `base64://` payloads, and files fetched through NapCat are supported. Without a usable vision description or text, the existing text-only notice applies. Other media are represented only by placeholders in stored chat records.
 
 **Conversation history.** Each friend and group conversation has its own history of turns, kept in memory. The model sees the system prompt, the last `history_turns` turns, and the new message. A history is cleared by `/reset`, after `idle_reset_minutes` of silence, and when the app restarts.
 

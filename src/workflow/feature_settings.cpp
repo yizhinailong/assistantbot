@@ -9,6 +9,7 @@
 #include <regex>
 #include <set>
 #include <stdexcept>
+#include <string_view>
 
 #include "storage/settings.hpp"
 #include "workflow/access_control.hpp"
@@ -262,7 +263,8 @@ namespace workflow {
 
     /**
      * @brief Return defaults for groups, administrators, model roles, tools, MCP, and memory.
-     * @return Complete configuration with optional capabilities disabled.
+     * @return Complete configuration with the vision role enabled and other optional
+     * capabilities disabled.
      */
     auto default_feature_settings() -> Json::Value {
         Json::Value root{ Json::objectValue };
@@ -271,7 +273,7 @@ namespace workflow {
         root["admins"] = Json::Value{ Json::arrayValue };
         for (auto const* name : ROLES) {
             auto& role{ root["models"][name] };
-            role["enabled"] = false;
+            role["enabled"] = std::string_view{ name } == "vision";
             role["base_url"] = "";
             role["api_key_env"] = "";
             role["model"] = "";

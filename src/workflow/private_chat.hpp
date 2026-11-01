@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <drogon/orm/DbClient.h>
 #include <drogon/utils/coroutine.h>
@@ -36,7 +37,7 @@ namespace workflow {
         std::int64_t group_id{};             ///< Group recipient; zero denotes a private conversation.
         std::string additional_prompt;       ///< Per-group instructions copied when an event is accepted.
         std::int32_t message_id{};           ///< Current incoming message available for quoting.
-        std::vector<std::string> image_urls; ///< Bounded incoming HTTP image locations.
+        std::vector<std::string> image_urls; ///< Bounded incoming image locations, resolved for the vision role.
     };
 
     /**
@@ -163,6 +164,18 @@ namespace workflow {
             drogon_onebot::Message message,
             std::string display
         ) -> drogon::Task<Json::Value>;
+
+        /**
+         * @brief Resolve accepted images, including those quoted by a reply, for the vision role.
+         *
+         * HTTP and `base64://` sources are kept or converted directly; other sources are
+         * fetched through the OneBot implementation. At most four images are returned, and
+         * a source that fails is skipped.
+         * @param peer Sender and recipient, used to restrict quoted messages to this chat.
+         * @param message Accepted incoming message.
+         * @return Vision-ready HTTP or data URLs.
+         */
+        auto ResolveImages(Peer peer, drogon_onebot::Message message) -> drogon::Task<std::vector<std::string>>;
 
         /**
          * @brief Describe current incoming images when the vision role is enabled.

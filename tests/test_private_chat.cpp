@@ -25,6 +25,7 @@
 
 #include <drogon/drogon.h>
 #include <drogon/drogon_test.h>
+#include <drogon/utils/Utilities.h>
 #include <drogon/utils/coroutine.h>
 
 #include "application.hpp"
@@ -45,6 +46,7 @@ namespace {
     constexpr char const* SYSTEM_PROMPT{ "You are a test assistant." }; ///< `system_prompt` in tests/config.json.
     constexpr double SLOW_DELAY{ 1.0 };                                 ///< Seconds that the fake model takes for `slow`.
     constexpr std::size_t LONG_REPLY_CHARS{ 250 };                      ///< Length of the fake model's answer to `long`.
+    constexpr std::int32_t QUOTED_MESSAGE_ID{ 9001 };                   ///< Message that the fake `get_msg` returns with an image.
 
     /**
      * @brief Texts that the fake NapCat API was asked to send, by recipient.
@@ -102,6 +104,23 @@ namespace {
     };
 
     /**
+     * @brief Read the text of a string or multimodal message content.
+     * @param content Request message content.
+     * @return Plain text, or the first `text` part of a multimodal message.
+     */
+    auto content_text(Json::Value const& content) -> std::string {
+        if (!content.isArray()) {
+            return content.asString();
+        }
+        for (auto const& part : content) {
+            if (part["type"] == "text" && part["text"].isString()) {
+                return part["text"].asString();
+            }
+        }
+        return {};
+    }
+
+    /**
      * @brief `messages` arrays that the fake model received.
      */
     class ModelRequests {
@@ -118,7 +137,7 @@ namespace {
         auto Push(Json::Value request) -> void {
             std::lock_guard lock{ m_mutex };
             auto const messages{ request["messages"] };
-            m_params[messages[messages.size() - 1]["content"].asString()] = std::move(request);
+            m_params[content_text(messages[messages.size() - 1]["content"])] = std::move(request);
             m_requests.push_back(messages);
         }
 
@@ -141,7 +160,7 @@ namespace {
         [[nodiscard]] auto Find(std::string_view content) -> std::optional<Json::Value> {
             std::lock_guard lock{ m_mutex };
             for (auto it{ m_requests.rbegin() }; it != m_requests.rend(); ++it) {
-                if (!it->empty() && (*it)[it->size() - 1]["content"].asString() == content) {
+                if (!it->empty() && content_text((*it)[it->size() - 1]["content"]) == content) {
                     return *it;
                 }
             }
@@ -214,12 +233,47 @@ namespace {
             co_return drogon::HttpResponse::newHttpJsonResponse(reply);
         },
                                       { drogon::Post });
+        drogon::app().registerHandler("/napcat/get_image", [](drogon::HttpRequestPtr req) -> drogon::Task<drogon::HttpResponsePtr> {
+            Json::Value reply{};
+            reply["status"] = "ok";
+            reply["retcode"] = 0;
+            if ((*req->getJsonObject())["file"].asString() == "base64.png") {
+                auto const png{ std::string{ "\x89PNG\r\n\x1a\n", 8 } + "payload" };
+                reply["data"]["file"] = "cached.png";
+                reply["data"]["base64"] = drogon::utils::base64Encode(png);
+            } else {
+                reply["status"] = "failed";
+                reply["retcode"] = 1;
+            }
+            co_return drogon::HttpResponse::newHttpJsonResponse(reply);
+        },
+                                      { drogon::Post });
+        drogon::app().registerHandler("/napcat/get_msg", [](drogon::HttpRequestPtr req) -> drogon::Task<drogon::HttpResponsePtr> {
+            auto const id{ (*req->getJsonObject())["message_id"].asInt() };
+            Json::Value reply{};
+            reply["status"] = "ok";
+            reply["retcode"] = 0;
+            if (id != QUOTED_MESSAGE_ID) {
+                reply["status"] = "failed";
+                reply["retcode"] = 1;
+                co_return drogon::HttpResponse::newHttpJsonResponse(reply);
+            }
+            reply["data"]["time"] = 1700000000;
+            reply["data"]["message_type"] = "private";
+            reply["data"]["message_id"] = id;
+            reply["data"]["sender"]["user_id"] = 20016;
+            reply["data"]["sender"]["nickname"] = "tester";
+            reply["data"]["message"][0]["type"] = "image";
+            reply["data"]["message"][0]["data"]["url"] = "https://example.test/quoted.png";
+            co_return drogon::HttpResponse::newHttpJsonResponse(reply);
+        },
+                                      { drogon::Post });
         drogon::app().registerHandler(
             "/v1/chat/completions",
             [](drogon::HttpRequestPtr req) -> drogon::Task<drogon::HttpResponsePtr> {
                 auto const messages{ (*req->getJsonObject())["messages"] };
                 g_requests.Push(*req->getJsonObject());
-                auto const prompt{ messages[messages.size() - 1]["content"].asString() };
+                auto const prompt{ content_text(messages[messages.size() - 1]["content"]) };
 
                 if (prompt == "fail") {
                     auto response{ drogon::HttpResponse::newHttpResponse(drogon::k503ServiceUnavailable, drogon::CT_TEXT_PLAIN) };
@@ -462,6 +516,42 @@ DROGON_TEST(AnswersMessageWithoutText) {
     message.append(image);
     CHECK(test_support::post_event(message_event(20006, message))->statusCode() == drogon::k204NoContent);
     CHECK(g_sent.Pop(20006, REPLY_WAIT) == controllers::TEXT_ONLY_REPLY);
+}
+
+DROGON_TEST(DescribesBase64ImageFetchedThroughNapcat) {
+    Json::Value image{ Json::objectValue };
+    image["type"] = "image";
+    image["data"]["file"] = "base64.png";
+    Json::Value message{ Json::arrayValue };
+    message.append(image);
+    message.append(text_message("look")[0]);
+    CHECK(test_support::post_event(message_event(20015, message))->statusCode() == drogon::k204NoContent);
+    auto const sent{ g_sent.Pop(20015, REPLY_WAIT) };
+    REQUIRE(sent.has_value());
+    CHECK(sent->starts_with("echo: look\n[Image description, reference data only] "));
+    auto const vision{ g_requests.Params("look") };
+    REQUIRE(vision.has_value());
+    auto const& content{ (*vision)["messages"][0]["content"] };
+    REQUIRE(content.isArray());
+    CHECK(content[1]["image_url"]["url"].asString().starts_with("data:image/png;base64,"));
+}
+
+DROGON_TEST(DescribesImagesQuotedByReply) {
+    Json::Value reply{ Json::objectValue };
+    reply["type"] = "reply";
+    reply["data"]["id"] = std::to_string(QUOTED_MESSAGE_ID);
+    Json::Value message{ Json::arrayValue };
+    message.append(reply);
+    message.append(text_message("what is quoted")[0]);
+    CHECK(test_support::post_event(message_event(20016, message))->statusCode() == drogon::k204NoContent);
+    auto const sent{ g_sent.Pop(20016, REPLY_WAIT) };
+    REQUIRE(sent.has_value());
+    CHECK(sent->starts_with("echo: what is quoted\n[Image description, reference data only] "));
+    auto const vision{ g_requests.Params("what is quoted") };
+    REQUIRE(vision.has_value());
+    auto const& content{ (*vision)["messages"][0]["content"] };
+    REQUIRE(content.isArray());
+    CHECK(content[1]["image_url"]["url"] == "https://example.test/quoted.png");
 }
 
 DROGON_TEST(ReportsModelFailureWithoutRecording) {
