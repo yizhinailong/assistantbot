@@ -10,7 +10,7 @@ Sign in with the administrator token before accessing runtime data or controls. 
 
 ## Authentication
 
-Set `ASSISTANTBOT_ADMIN_TOKEN` to your own non-empty secret before starting the bot. The `admin::Auth` plugin stores only its environment variable name, `admin_token_env`, in `config.json`; an unset or empty variable stops startup. Tokens may contain at most 4096 bytes, are compared through fixed-size SHA-256 digests without an early exit, and are never logged or returned.
+Set `ASSISTANTBOT_ADMIN_TOKEN` to your own non-empty secret before starting the bot. `app::Application` stores only its environment variable name in `config.admin_token_env` in `config.json` and initializes the authentication service; an unset or empty variable stops startup. Tokens may contain at most 4096 bytes, are compared through fixed-size SHA-256 digests without an early exit, and are never logged or returned.
 
 Open `/#/login` and enter the token. A successful login sets a host-only `HttpOnly`, `SameSite=Strict` cookie under `/api/admin`. The browser stores the opaque session ID; the pages keep no token in local storage or the URL. Sessions expire after 12 hours, are revoked on logout, and disappear on restart. Each login replaces the browser's previous session; the server retains at most 256 sessions, evicting the oldest when full.
 

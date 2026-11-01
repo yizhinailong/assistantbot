@@ -8,16 +8,15 @@ This page describes how assistantbot is put together, how to configure it, how i
 
 ## Overview
 
-The app combines six drogon plugins, all registered in `config.json`:
+The app registers three Drogon plugins in `config.json`:
 
 | Plugin | Source | Role |
 | --- | --- | --- |
 | `drogon_onebot::OneBotClient` | [drogon-onebot](https://github.com/yizhinailong/drogon-onebot) | Registers the event route that NapCat posts to, and calls NapCat's HTTP API to send messages |
 | `drogon_openai::OpenAIClient` | [drogon-openai](https://github.com/yizhinailong/drogon-openai) | Calls the chat completions API of an OpenAI-compatible model |
-| `storage::Database` | `src/storage/` in this repository | Opens the bot's SQLite database and brings its schema up to date |
-| `controllers::AssistantBot` | `src/controllers/`, `src/workflow/`, and `src/common/` in this repository | Decides which messages to answer, keeps the conversations, and connects the other three |
-| `admin::Auth` | `src/servers/` | Authenticates administrative HTTP requests and WebSocket upgrades |
-| `admin::Runtime` | `src/servers/` | Queries bot and NapCat status, daily usage, and process samples |
+| `app::Application` | `src/application.*` in this repository | Owns authentication, SQLite, bot workflows, and runtime sampling |
+
+`admin::Auth`, `storage::Database`, `controllers::AssistantBot`, and `admin::Runtime` are ordinary services owned by `Application`. Their source remains in `src/servers/`, `src/storage/`, and `src/controllers/onebot/`, with workflow code in `src/workflow/`. Application startup initializes authentication, opens the database, starts the bot, and starts runtime sampling. Shutdown reverses that order.
 
 A message travels like this:
 
@@ -34,61 +33,62 @@ NapCat ──POST /onebot/event──▶ OneBotClient ──204──▶ (NapCat
 NapCat ◀──send_private_msg──── OneBotClient
 ```
 
-The event route answers 204 before the bot runs, so a slow model never holds up NapCat. `src/main.cpp` aborts at startup when `config.json` does not load `controllers::AssistantBot`, because drogon would only log the missing name and run without it.
+The event route answers 204 before the bot runs, so a slow model never holds up NapCat. `src/main.cpp` aborts at startup when `config.json` does not load `app::Application`, preventing the server from accepting requests without its authentication and bot services.
 
 The [admin pages](admin.md) can pause new messages before commands and queuing. In-flight work continues; restarting resumes normal operation. Each completed model request appends its outcome and reported token counts to SQLite for the overview's daily UTC totals. Schema version 2 adds `model_usage`, version 3 adds `chat_messages`, and version 4 adds cache hits, preserving existing data. The admin pages also provide live sessions, hot reply settings, usage charts, and filtered logs.
 
 ## Configuration
 
-`config.json` registers all six plugins. It is tracked and holds nothing private, so edit it in place; the values that differ per person come from environment variables:
+`config.json` registers all three plugins. It is tracked and holds nothing private, so edit it in place; the values that differ per person come from environment variables:
 
 | Environment variable | Read by | Value |
 | --- | --- | --- |
 | `ONEBOT_ACCESS_TOKEN` | `OneBotClient` (`access_token_env`) | Token of NapCat's HTTP server; sent as `Authorization: Bearer` |
 | `ONEBOT_SECRET` | `OneBotClient` (`secret_env`) | Token of NapCat's HTTP client; checks the signature of each event |
 | `DEEPSEEK_API_KEY` | `OpenAIClient` (`api_key_env`) | API key of the model provider |
-| `ASSISTANTBOT_ADMIN_TOKEN` | `admin::Auth` (`admin_token_env`) | Secret used to sign in to the admin pages |
+| `ASSISTANTBOT_ADMIN_TOKEN` | `app::Application` (`config.admin_token_env`) | Secret used to sign in to the admin pages |
 
-Secrets are read only from environment variables; `config.json` holds only their names. A plugin whose named variable is unset or empty stops the app at startup.
+Secrets are read only from environment variables; `config.json` holds only their names. A configured secret whose named variable is unset or empty stops the app at startup.
 
 The two library plugins are described in their own guides: [drogon-onebot](https://github.com/yizhinailong/drogon-onebot/blob/master/docs/en/drogon-plugin.md) and [drogon-openai](https://github.com/yizhinailong/drogon-openai/blob/master/docs/en/drogon-plugin.md). For assistantbot:
 
 - `OneBotClient` needs an `event_path`, or no message reaches the bot.
 - `OpenAIClient`'s `base_url` and `model` choose the default endpoint and model. A bot setting can override the model name for each request. `config.json` uses DeepSeek; for OpenAI, use `https://api.openai.com/v1` and an OpenAI model name.
 
-`storage::Database` keeps the bot's data in a SQLite database:
+`app::Application` depends on both library plugins. Its configuration groups the administrative token variable, database directory, and bot defaults:
 
 ```json
 {
-    "name": "storage::Database",
+    "name": "app::Application",
+    "dependencies": [
+        "drogon_onebot::OneBotClient",
+        "drogon_openai::OpenAIClient"
+    ],
     "config": {
-        "data_dir": "data"
+        "admin_token_env": "ASSISTANTBOT_ADMIN_TOKEN",
+        "data_dir": "data",
+        "bot": {
+            "history_turns": 10,
+            "idle_reset_minutes": 30,
+            "request_timeout": 90,
+            "max_reply_chars": 1500,
+            "model": ""
+        }
     }
 }
 ```
 
-| Key | Required | Default | Description |
+| Application key | Required | Default | Description |
 | --- | --- | --- | --- |
-| `data_dir` | No | `data` | Directory of the database file `assistantbot.db`, relative to the working directory. Both are created when missing. |
+| `admin_token_env` | Yes | — | Name of the non-empty environment variable used for administrative login. |
+| `data_dir` | No | `data` | Directory containing `assistantbot.db`, relative to the working directory; created when missing. |
+| `bot` | No | Built-in reply defaults | Object containing the reply settings listed below. |
 
-- `data/` is ignored by Git. Back it up to keep what the bot has saved.
-- At startup the plugin brings the database's schema up to date. A database written by a newer version of the bot, or a file that SQLite cannot open, stops the app with a message that starts with `storage::Database:`.
+`data/` is ignored by Git. Back it up to retain saved conversations and settings. Startup migrates the existing database schema; an incompatible newer schema or an unopenable SQLite file stops the app with a `storage::Database:` error. Failed application initialization releases services already started.
 
-`controllers::AssistantBot` must come after the other three and list them under `dependencies`, so that drogon initializes them first:
+To migrate an older six-plugin configuration, replace the `admin::Auth`, `storage::Database`, `controllers::AssistantBot`, and `admin::Runtime` entries with the single application entry above. Copy the old token variable name and `data_dir` into its `config`, and the old bot configuration into `config.bot`. Preserve your existing values and data directory; saved overrides remain in the same database. Keep only the OneBot and OpenAI names in `dependencies`. The former four service names are no longer registered plugins.
 
-```json
-{
-    "name": "controllers::AssistantBot",
-    "dependencies": ["drogon_onebot::OneBotClient", "drogon_openai::OpenAIClient", "storage::Database"],
-    "config": {
-        "history_turns": 10,
-        "idle_reset_minutes": 30,
-        "request_timeout": 90,
-        "max_reply_chars": 1500,
-        "model": ""
-    }
-}
-```
+Keys inside `config.bot`:
 
 | Key | Required | Default | Description |
 | --- | --- | --- | --- |
@@ -192,12 +192,13 @@ The app-backed tests load `tests/config.json`, never the app's `config.json`, an
 
 | Program | What it covers |
 | --- | --- |
-| `test_config` | Reads the bot's config keys: defaults, every key set, and wrong types and ranges. Also checks that the bot entries of `tests/config.json` and `config.json` parse and list the three dependencies. |
+| `test_application` | Application service composition, authentication and pause state, invalid root configuration, and database/workflow release on shutdown. |
+| `test_config` | Reads the bot's config keys: defaults, every key set, and wrong types and ranges. Also checks the three-plugin layout, application configuration, nested bot defaults, and both client dependencies. |
 | `test_text` | The log lines of received and sent messages, text extraction from message segments, Markdown removal, and splitting long replies by UTF-8 characters at line breaks. |
 | `test_session_store` | Queuing and merging messages while a reply is in flight, the history limit, clearing after silence, `/reset` dropping a reply that was in flight, and releasing a user after a failure. |
 | `test_private_chat` | The bot end to end with a fake NapCat API and a fake model: a reply, history sent back and trimmed, `/reset`, `/help`, a message without text, a failing model, merging messages sent while busy, Markdown removal, long replies split, and ignoring group messages and temporary sessions. |
 | `test_health` | `GET /api/admin/health` answers `{"status": "ok"}`. |
-| `test_storage` | The database plugin of `tests/config.json` and its config errors; creating the directory and the file, a path with a space, a file that SQLite cannot open, rejecting a newer schema, saving, replacing, and rereading settings, and preserving the caller's event loop on successful and failed queries. |
+| `test_storage` | The application-owned database of `tests/config.json` and its config errors; creating the directory and the file, a path with a space, a file that SQLite cannot open, rejecting a newer schema, saving, replacing, and rereading settings, and preserving the caller's event loop on successful and failed queries. |
 | `test_bot_settings` | Overlaying saved settings on the config: defaults, invalid saved values, saving and applying an update, a reply keeping its snapshot, restoring the config with `{}`, rejecting invalid updates, and rejecting a second save while one is in flight. |
 | `test_access_control` | Default policy, blacklist priority, immutable snapshots, reopening the database, invalid saved policies, failed writes, and overlapping updates. |
 | `test_admin_access` | Authenticated mode and list changes, input validation, QQ precision, friend annotations and upstream failure, save failures, and HTTP 409 conflicts. |

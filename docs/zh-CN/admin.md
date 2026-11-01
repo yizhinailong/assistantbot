@@ -10,7 +10,7 @@ bot 带有一组用于管理它的网页，位于 `frontend/`。网页用 Vue 3�
 
 ## 认证
 
-启动前，把 `ASSISTANTBOT_ADMIN_TOKEN` 设置为自己的非空密钥。`admin::Auth` 插件在 `config.json` 的 `admin_token_env` 中只保存变量名，变量未设置或为空时启动失败。令牌最多 4096 字节，通过固定长度的 SHA-256 摘要进行不提前退出的比较，既不写日志，也不通过接口返回。
+启动前，把 `ASSISTANTBOT_ADMIN_TOKEN` 设置为自己的非空密钥。`app::Application` 在 `config.json` 的 `config.admin_token_env` 中只保存变量名，并初始化认证服务；变量未设置或为空时启动失败。令牌最多 4096 字节，通过固定长度的 SHA-256 摘要进行不提前退出的比较，既不写日志，也不通过接口返回。
 
 打开 `/#/login` 并输入令牌。登录成功后，服务设置仅限当前主机、路径为 `/api/admin` 的 `HttpOnly`、`SameSite=Strict` cookie。浏览器只保存随机会话 ID，页面不把令牌放进本地存储或 URL。会话在 12 小时后过期，退出登录立即撤销，重启后全部失效。每次登录会替换浏览器原来的会话；服务最多保留 256 个会话，达到上限时移除最早的会话。
 

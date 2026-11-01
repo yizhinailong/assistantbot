@@ -8,16 +8,15 @@
 
 ## 概览
 
-应用由六个 drogon 插件组成，都在 `config.json` 中注册：
+应用在 `config.json` 中注册三个 Drogon 插件：
 
 | 插件 | 来源 | 作用 |
 | --- | --- | --- |
 | `drogon_onebot::OneBotClient` | [drogon-onebot](https://github.com/yizhinailong/drogon-onebot) | 注册 NapCat 上报事件的路由，并调用 NapCat 的 HTTP API 发送消息 |
 | `drogon_openai::OpenAIClient` | [drogon-openai](https://github.com/yizhinailong/drogon-openai) | 调用兼容 OpenAI 格式的模型的 chat completions 接口 |
-| `storage::Database` | 本仓库的 `src/storage/` | 打开 bot 的 SQLite 数据库，并把表结构升级到最新 |
-| `controllers::AssistantBot` | 本仓库的 `src/controllers/`、`src/workflow/` 和 `src/common/` | 决定回复哪些消息，保存对话，并把另外三个插件连起来 |
-| `admin::Auth` | 本仓库的 `src/servers/` | 认证后台 HTTP 请求和 WebSocket 升级 |
-| `admin::Runtime` | 本仓库的 `src/servers/` | 查询 bot、NapCat 状态、当天用量和进程样本 |
+| `app::Application` | 本仓库的 `src/application.*` | 统一管理认证、SQLite、bot 工作流和运行状态采样 |
+
+`admin::Auth`、`storage::Database`、`controllers::AssistantBot` 和 `admin::Runtime` 是由 `Application` 持有的普通服务。源码仍分别位于 `src/servers/`、`src/storage/` 和 `src/controllers/onebot/`，工作流位于 `src/workflow/`。应用依次初始化认证、打开数据库、启动 bot 和运行状态采样，退出时按相反顺序清理。
 
 一条消息的处理过程：
 
@@ -34,61 +33,62 @@ NapCat ──POST /onebot/event──▶ OneBotClient ──204──▶ （NapC
 NapCat ◀──send_private_msg──── OneBotClient
 ```
 
-事件路由在 bot 运行之前就回复 204，所以模型再慢也不会拖住 NapCat。`config.json` 没有加载 `controllers::AssistantBot` 时，`src/main.cpp` 会在启动时直接中止，因为 drogon 只会记录一条日志，然后在没有这个插件的情况下继续运行。
+事件路由在 bot 运行之前就回复 204，所以模型再慢也不会拖住 NapCat。`config.json` 没有加载 `app::Application` 时，`src/main.cpp` 会在启动时直接中止，避免服务在缺少认证或 bot 服务时接受请求。
 
 [管理后台](admin.md) 可以在命令处理和入队前暂停新消息，已经开始的工作继续完成，重启后恢复正常运行。每次模型请求完成后，向 SQLite 逐条追加结果和返回的令牌数，用于首页按 UTC 统计当天用量。Schema 版本 2 新增 `model_usage`，版本 3 新增 `chat_messages`，版本 4 增加缓存命中数，保留原有数据。后台还提供实时会话、回复设置热更新、用量图表和日志过滤。
 
 ## 配置
 
-`config.json` 注册了全部六个插件。它已提交到仓库，其中没有任何私密信息，直接修改即可；因人而异的值都从环境变量读取：
+`config.json` 注册了全部三个插件。它已提交到仓库，其中没有任何私密信息，直接修改即可；因人而异的值都从环境变量读取：
 
-| 环境变量 | 读取它的插件 | 值 |
+| 环境变量 | 读取位置 | 值 |
 | --- | --- | --- |
 | `ONEBOT_ACCESS_TOKEN` | `OneBotClient`（`access_token_env`） | NapCat HTTP 服务器的 token，以 `Authorization: Bearer` 发送 |
 | `ONEBOT_SECRET` | `OneBotClient`（`secret_env`） | NapCat HTTP 客户端的 token，用于校验每个事件的签名 |
 | `DEEPSEEK_API_KEY` | `OpenAIClient`（`api_key_env`） | 模型服务商的 API key |
-| `ASSISTANTBOT_ADMIN_TOKEN` | `admin::Auth`（`admin_token_env`） | 管理后台登录密钥 |
+| `ASSISTANTBOT_ADMIN_TOKEN` | `app::Application`（`config.admin_token_env`） | 管理后台登录密钥 |
 
-密钥只从环境变量读取，`config.json` 里只写变量名。插件指定的变量未设置或为空时，应用会在启动时停止。
+密钥只从环境变量读取，`config.json` 里只写变量名。配置指定的变量未设置或为空时，应用会在启动时停止。
 
 两个库插件的配置见各自的使用说明：[drogon-onebot](https://github.com/yizhinailong/drogon-onebot/blob/master/docs/zh-CN/drogon-plugin.md) 和 [drogon-openai](https://github.com/yizhinailong/drogon-openai/blob/master/docs/zh-CN/drogon-plugin.md)。对 assistantbot 来说：
 
 - `OneBotClient` 必须设置 `event_path`，否则没有消息能到达 bot。
 - `OpenAIClient` 的 `base_url` 和 `model` 决定默认服务地址和模型；bot 设置可以覆盖每次请求的模型名。`config.json` 用的是 DeepSeek；对接 OpenAI 时，改为 `https://api.openai.com/v1` 和 OpenAI 的模型名。
 
-`storage::Database` 把 bot 的数据保存在 SQLite 数据库中：
+`app::Application` 依赖两个库插件，配置集中保存后台令牌变量名、数据库目录和 bot 默认设置：
 
 ```json
 {
-    "name": "storage::Database",
+    "name": "app::Application",
+    "dependencies": [
+        "drogon_onebot::OneBotClient",
+        "drogon_openai::OpenAIClient"
+    ],
     "config": {
-        "data_dir": "data"
+        "admin_token_env": "ASSISTANTBOT_ADMIN_TOKEN",
+        "data_dir": "data",
+        "bot": {
+            "history_turns": 10,
+            "idle_reset_minutes": 30,
+            "request_timeout": 90,
+            "max_reply_chars": 1500,
+            "model": ""
+        }
     }
 }
 ```
 
-| 配置项 | 必填 | 默认值 | 说明 |
+| 应用配置项 | 必填 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `data_dir` | 否 | `data` | 数据库文件 `assistantbot.db` 所在的目录，相对于工作目录。目录和文件不存在时会自动创建。 |
+| `admin_token_env` | 是 | — | 后台登录密钥所在的非空环境变量名称。 |
+| `data_dir` | 否 | `data` | `assistantbot.db` 所在目录，相对于工作目录；目录不存在时自动创建。 |
+| `bot` | 否 | 内置回复默认值 | 包含下表回复设置的对象。 |
 
-- Git 会忽略 `data/`。要保留 bot 保存的内容，请备份这个目录。
-- 启动时插件会把数据库的表结构升级到最新。如果数据库来自更新版本的 bot，或者 SQLite 无法打开这个文件，应用会停止，错误信息以 `storage::Database:` 开头。
+Git 会忽略 `data/`，请备份此目录以保留聊天记录和设置。启动时仍会升级原有数据库的表结构；数据库版本过新或 SQLite 无法打开文件时，应用以 `storage::Database:` 错误停止。应用初始化失败时会释放已经启动的服务。
 
-`controllers::AssistantBot` 必须写在另外三个插件之后，并在 `dependencies` 中列出它们，这样 drogon 会先初始化它们：
+从旧版六插件配置迁移时，用上面的单个应用配置替换 `admin::Auth`、`storage::Database`、`controllers::AssistantBot` 和 `admin::Runtime` 四项。将原来的令牌变量名和 `data_dir` 放入应用的 `config`，将原 bot 配置放入 `config.bot`，保留自己的设置和数据目录；数据库中的设置覆盖值继续生效。`dependencies` 只保留 OneBot 和 OpenAI 两个库插件。原来的四个服务名不再注册为插件。
 
-```json
-{
-    "name": "controllers::AssistantBot",
-    "dependencies": ["drogon_onebot::OneBotClient", "drogon_openai::OpenAIClient", "storage::Database"],
-    "config": {
-        "history_turns": 10,
-        "idle_reset_minutes": 30,
-        "request_timeout": 90,
-        "max_reply_chars": 1500,
-        "model": ""
-    }
-}
-```
+`config.bot` 中的配置项：
 
 | 配置项 | 必填 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -192,12 +192,13 @@ SQLite 数据库只有一个连接，运行在单独的线程上，所以语句�
 
 | 程序 | 覆盖内容 |
 | --- | --- |
-| `test_config` | 读取 bot 的配置项：默认值、设置了全部配置项，以及类型和取值范围错误。还检查 `tests/config.json` 和 `config.json` 中的 bot 配置能通过校验，并列出了三个依赖。 |
+| `test_application` | 应用服务组合、认证和暂停状态共享、根配置校验，以及退出后数据库和工作流的释放。 |
+| `test_config` | 读取 bot 的配置项：默认值、设置了全部配置项，以及类型和取值范围错误。还检查三个插件的布局、应用配置、嵌套的 bot 默认设置和两个客户端依赖。 |
 | `test_text` | 收发消息的日志行、从消息段提取文字、去掉 Markdown，以及按 UTF-8 字符数在换行处拆分长回复。 |
 | `test_session_store` | 回复期间消息的排队与合并、历史轮数上限、沉默后清空、`/reset` 丢弃正在生成的回复，以及失败后释放用户。 |
 | `test_private_chat` | 用假的 NapCat 接口和假的模型端到端测试 bot：正常回复、带回并裁剪历史、`/reset`、`/help`、没有文字的消息、模型失败、合并忙碌时发来的消息、去掉 Markdown、拆分长回复，以及忽略群消息和临时会话。 |
 | `test_health` | `GET /api/admin/health` 返回 `{"status": "ok"}`。 |
-| `test_storage` | `tests/config.json` 中的数据库插件及其配置错误；创建目录和文件、带空格的路径、SQLite 无法打开的文件、拒绝更新版本的表结构，保存、替换和重新读取设置，以及查询成功和失败后都回到调用方的事件循环。 |
+| `test_storage` | `tests/config.json` 中由应用管理的数据库及其配置错误；创建目录和文件、带空格的路径、SQLite 无法打开的文件、拒绝更新版本的表结构，保存、替换和重新读取设置，以及查询成功和失败后都回到调用方的事件循环。 |
 | `test_bot_settings` | 在配置上叠加保存的设置：默认值、无效的保存值、保存并应用更新、回复保留自己的快照、用 `{}` 恢复配置、拒绝无效的更新，以及在一次保存未完成时拒绝第二次保存。 |
 | `test_access_control` | 默认策略、黑名单优先级、不可变快照、重新打开数据库、无效保存策略、保存失败和同时修改。 |
 | `test_admin_access` | 认证后的模式和名单修改、参数校验、QQ 号精度、好友标记和上游失败、保存失败，以及 HTTP 409 冲突。 |
