@@ -72,6 +72,8 @@ docker compose up --detach --no-build
 
 For updates, select the next published version and repeat those commands. You can also select `latest`. Omitting `ASSISTANTBOT_IMAGE` keeps the local-build default `assistantbot:local`. Both paths use the same config and persistent data volume.
 
+Without Compose, `scripts/docker_run_assistantbot.sh` does the same in one step. It takes the four runtime credentials from the exported environment (`.env.example` is only the template for Compose), pulls `yizhinailong/assistantbot:latest`, and starts a background container with host networking, the read-only `config.json` mount, a 64 MiB `/tmp` tmpfs, and the `assistantbot-data` volume. Afterwards use `docker start`, `docker stop`, and `docker logs assistantbot`.
+
 Every change to `project(VERSION ...)` pushed to `master` creates a version tag. The tag's Linux CI publishes the image after native tests and frontend checks pass. Credential setup and retries are described in the [CI guide](ci.md).
 
 ## Configuration and persistence

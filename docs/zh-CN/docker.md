@@ -72,6 +72,8 @@ docker compose up --detach --no-build
 
 更新时，选择下一个已发布版本，再执行这两条命令；也可以使用 `latest`。不设置 `ASSISTANTBOT_IMAGE` 时，默认仍使用本地构建的 `assistantbot:local`。两种方式使用相同的配置和持久化数据卷。
 
+不使用 Compose 时，`scripts/docker_run_assistantbot.sh` 可以一步完成同样的工作：从已导出的环境变量读取四个运行时凭据（`.env.example` 只是供 Compose 使用的模板），拉取 `yizhinailong/assistantbot:latest`，并以主机网络、只读 `config.json` 挂载、64 MiB 的 `/tmp` tmpfs 和 `assistantbot-data` 数据卷在后台启动容器。之后使用 `docker start`、`docker stop` 和 `docker logs assistantbot` 管理它。
+
 修改 `project(VERSION ...)` 并推送到 `master` 后，会创建版本标签；该标签上的 Linux CI 在原生测试和前端检查通过后发布镜像。凭据配置和失败重试方法见 [CI 使用说明](ci.md)。
 
 ## 配置与数据持久化
