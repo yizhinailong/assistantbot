@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 4.0.0)
 project(
     assistantbot
     LANGUAGES CXX
-    VERSION 0.1.2
+    VERSION 0.1.3
 )
 
 option(ASSISTANTBOT_BUILD_TESTS "Build the test executables" ${PROJECT_IS_TOP_LEVEL})
