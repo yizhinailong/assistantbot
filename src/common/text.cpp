@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <format>
 #include <ranges>
+#include <utility>
 
 namespace common {
 
@@ -27,6 +28,25 @@ namespace common {
             }
             auto const last{ text.find_last_not_of(WHITESPACE) };
             return text.substr(first, last - first + 1);
+        }
+
+        /**
+         * @brief Describe one sticker segment.
+         * @param segment Message segment.
+         * @return Summary of a market sticker, `[QQ表情:<id>]` for a QQ face, or empty.
+         */
+        auto sticker_text(drogon_onebot::MessageSegment const& segment) -> std::string {
+            if (segment.type == "mface") {
+                auto const value{ segment.data["summary"].isString() ? segment.data["summary"].asString() : std::string{} };
+                auto const summary{ trim(value) };
+                return summary.empty() ? std::string{ "[表情]" } : std::string{ summary };
+            }
+            if (segment.type == "face") {
+                auto const value{ segment.data["id"].isString() ? segment.data["id"].asString() : std::string{} };
+                auto const id{ trim(value) };
+                return id.empty() ? std::string{ "[QQ表情]" } : "[QQ表情:" + std::string{ id } + "]";
+            }
+            return {};
         }
 
         /**
@@ -121,27 +141,60 @@ namespace common {
     } // namespace
 
     /**
+     * @brief Describe a message's segments as readable content.
+     *
+     * `text` segments appear as they are, `at` segments as `@<qq>`, market stickers as
+     * their summary, QQ faces as `[QQ表情:<id>]`, and other segments as `[<type>]`.
+     * @param message Message in array format.
+     * @return Joined description; empty when the message has no segments.
+     */
+    auto describe_content(drogon_onebot::Message const& message) -> std::string {
+        std::string content{};
+        for (auto const& segment : message) {
+            if (segment.type == "text" && segment.data["text"].isString()) {
+                content += segment.data["text"].asString();
+            } else if (segment.type == "at") {
+                content += "@" + (segment.data["qq"].isString() ? segment.data["qq"].asString() : std::string{});
+            } else {
+                auto sticker{ sticker_text(segment) };
+                content += sticker.empty() ? "[" + segment.type + "]" : std::move(sticker);
+            }
+        }
+        return content;
+    }
+
+    /**
+     * @brief Describe only the sticker segments of a message.
+     * @param message Message in array format.
+     * @return Sticker descriptions separated by spaces; empty when there are none.
+     */
+    auto extract_stickers(drogon_onebot::Message const& message) -> std::string {
+        std::string stickers{};
+        for (auto const& segment : message) {
+            auto sticker{ sticker_text(segment) };
+            if (sticker.empty()) {
+                continue;
+            }
+            if (!stickers.empty()) {
+                stickers += ' ';
+            }
+            stickers += sticker;
+        }
+        return stickers;
+    }
+
+    /**
      * @brief Describe a received message in one log line.
      *
      * The line is `(<self_id>) 接收 <- 私聊 <name>(<user_id>) <content>` for a private message
      * and `(<self_id>) 接收 <- 群聊 (<group_id>) <name>(<user_id>) <content>` for a group
      * message. The name is the sender's group card when set, otherwise their nickname, and
-     * may be empty. In the content, `text` segments appear as they are, `at` segments as
-     * `@<qq>`, and other segments as `[<type>]`, e.g. `[image]`.
+     * may be empty. The content comes from `describe_content()`.
      * @param event Message event from the OneBot implementation.
      * @return The line.
      */
     auto describe_received(drogon_onebot::MessageEvent const& event) -> std::string {
-        std::string content{};
-        for (auto const& segment : event.message) {
-            if (segment.type == "text" && segment.data["text"].isString()) {
-                content += segment.data["text"].asString();
-            } else if (segment.type == "at") {
-                content += "@" + segment.data["qq"].asString();
-            } else {
-                content += "[" + segment.type + "]";
-            }
-        }
+        auto const content{ describe_content(event.message) };
         auto const& name{ event.sender.card.empty() ? event.sender.nickname : event.sender.card };
         if (event.message_type == "group") {
             return std::format("({}) 接收 <- 群聊 ({}) {}({}) {}", event.self_id, event.group_id.value_or(0), name, event.user_id, content);

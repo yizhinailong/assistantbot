@@ -554,6 +554,36 @@ DROGON_TEST(DescribesImagesQuotedByReply) {
     CHECK(content[1]["image_url"]["url"] == "https://example.test/quoted.png");
 }
 
+DROGON_TEST(AnswersMarketStickerMessages) {
+    Json::Value sticker{ Json::objectValue };
+    sticker["type"] = "mface";
+    sticker["data"]["summary"] = "[动画表情]";
+    Json::Value message{ Json::arrayValue };
+    message.append(sticker);
+    CHECK(test_support::post_event(message_event(20017, message))->statusCode() == drogon::k204NoContent);
+    CHECK(g_sent.Pop(20017, REPLY_WAIT) == "echo: [动画表情]");
+    CHECK(g_requests.Find("[动画表情]").has_value());
+}
+
+DROGON_TEST(DescribesMarketStickerImages) {
+    Json::Value sticker{ Json::objectValue };
+    sticker["type"] = "mface";
+    sticker["data"]["summary"] = "[动画表情]";
+    sticker["data"]["url"] = "https://example.test/sticker.gif";
+    Json::Value message{ Json::arrayValue };
+    message.append(sticker);
+    message.append(text_message("sticker")[0]);
+    CHECK(test_support::post_event(message_event(20018, message))->statusCode() == drogon::k204NoContent);
+    auto const sent{ g_sent.Pop(20018, REPLY_WAIT) };
+    REQUIRE(sent.has_value());
+    CHECK(sent->contains("[动画表情]"));
+    auto const vision{ g_requests.Params("sticker") };
+    REQUIRE(vision.has_value());
+    auto const& content{ (*vision)["messages"][0]["content"] };
+    REQUIRE(content.isArray());
+    CHECK(content[1]["image_url"]["url"] == "https://example.test/sticker.gif");
+}
+
 DROGON_TEST(ReportsModelFailureWithoutRecording) {
     CHECK(say(20007, "fail") == drogon::k204NoContent);
     CHECK(g_sent.Pop(20007, REPLY_WAIT) == workflow::FAILURE_REPLY);

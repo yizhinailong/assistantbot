@@ -22,7 +22,8 @@ namespace common {
      * and `(<self_id>) 接收 <- 群聊 (<group_id>) <name>(<user_id>) <content>` for a group
      * message. The name is the sender's group card when set, otherwise their nickname, and
      * may be empty. In the content, `text` segments appear as they are, `at` segments as
-     * `@<qq>`, and other segments as `[<type>]`, e.g. `[image]`.
+     * `@<qq>`, stickers as described by `describe_content()`, and other segments as
+     * `[<type>]`, e.g. `[image]`.
      * @param event Message event from the OneBot implementation.
      * @return The line.
      */
@@ -43,6 +44,29 @@ namespace common {
         std::int64_t user_id,
         std::string_view nickname
     ) -> std::string;
+
+    /**
+     * @brief Describe a message's segments as readable content.
+     *
+     * `text` segments appear as they are, `at` segments as `@<qq>`, market stickers
+     * (`mface`) as their own summary such as `[动画表情]`, QQ faces (`face`) as
+     * `[QQ表情:<id>]`, and other segments, such as `image`, as `[<type>]`. QQ faces
+     * without an ID appear as `[QQ表情]`.
+     * @param message Message in array format.
+     * @return Joined description; empty when the message has no segments.
+     */
+    auto describe_content(drogon_onebot::Message const& message) -> std::string;
+
+    /**
+     * @brief Describe only the sticker segments of a message.
+     *
+     * Market stickers and QQ faces contribute their `describe_content()` text; every
+     * other segment contributes nothing. This is what a message with only a sticker
+     * adds to the model prompt.
+     * @param message Message in array format.
+     * @return Sticker descriptions separated by spaces; empty when there are none.
+     */
+    auto extract_stickers(drogon_onebot::Message const& message) -> std::string;
 
     /**
      * @brief Join the text of a message's `text` segments.

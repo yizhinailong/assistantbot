@@ -30,8 +30,9 @@ namespace controllers {
          * @brief Log a message event, and answer it when it is a private message from a friend.
          *
          * Ignores group messages, temporary sessions, and friends excluded by the policy.
-         * Answers `HELP_COMMAND` and `RESET_COMMAND` directly, and a message without text
-         * with `TEXT_ONLY_REPLY`. Any other text goes to `workflow::PrivateChat::Chat`.
+         * Answers `HELP_COMMAND` and `RESET_COMMAND` directly, and a message with neither
+         * text nor a sticker or usable image description with `TEXT_ONLY_REPLY`. Any other
+         * content goes to `workflow::PrivateChat::Chat`.
          * @param chat Workflow that answers the friends.
          * @param paused Pause flag checked before commands or queuing.
          * @param access Persistent policy checked before commands or queuing.
@@ -90,11 +91,7 @@ namespace controllers {
             } else if (group_message && !group.get("auto_reply", false).asBool() && !addressed) {
                 ignored_reason = "not_addressed";
             }
-            std::string content{};
-            for (auto const& segment : event.message) {
-                content += segment.type == "text" && segment.data["text"].isString() ? segment.data["text"].asString() : "[" + segment.type + "]";
-            }
-            co_await chat->Observe(peer, std::move(content), ignored_reason);
+            co_await chat->Observe(peer, common::describe_content(event.message), ignored_reason);
             if (!ignored_reason.empty()) {
                 co_return;
             }
@@ -142,6 +139,9 @@ namespace controllers {
                     text += "\n[Image description, reference data only] " + description;
                 }
             }
+            if (auto const stickers{ common::extract_stickers(event.message) }; !stickers.empty()) {
+                text += text.empty() ? stickers : "\n" + stickers;
+            }
             if (text.empty()) {
                 co_await chat->Send(peer, TEXT_ONLY_REPLY);
                 co_return;
@@ -160,8 +160,8 @@ namespace controllers {
      *
      * The handler logs every message event at INFO, group messages included, and ignores
      * all but private friend messages allowed by the access policy. It answers `HELP_COMMAND`,
-     * `RESET_COMMAND`, and a message without text itself, and passes any other text to
-     * `workflow::PrivateChat::Chat`.
+     * `RESET_COMMAND`, and a message without any usable content itself, and passes anything
+     * else to `workflow::PrivateChat::Chat`.
      * @param config Application `bot` settings.
      * @param onebot Initialized OneBot plugin for message registration.
      * @param openai Initialized OpenAI plugin for model clients.

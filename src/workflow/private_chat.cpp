@@ -59,19 +59,26 @@ namespace workflow {
 
         /**
          * @brief Collect image locations from one message, bounded per reply.
+         *
+         * Market stickers contribute only their URL, because their `file` field names an
+         * internal resource rather than a file the OneBot implementation can fetch.
          * @param message Message segments.
          * @param sources Output list; existing entries are kept.
          */
         auto collect_image_sources(drogon_onebot::Message const& message, std::vector<ImageSource>& sources) -> void {
             for (auto const& segment : message) {
-                if (segment.type != "image" || sources.size() >= MAX_MESSAGE_IMAGES * 2) {
+                if (sources.size() >= MAX_MESSAGE_IMAGES * 2) {
+                    continue;
+                }
+                bool const image{ segment.type == "image" };
+                if (!image && segment.type != "mface") {
                     continue;
                 }
                 ImageSource source{};
                 if (segment.data["url"].isString()) {
                     source.url = segment.data["url"].asString();
                 }
-                if (segment.data["file"].isString()) {
+                if (image && segment.data["file"].isString()) {
                     source.file = segment.data["file"].asString();
                 }
                 if (!source.url.empty() || !source.file.empty()) {
@@ -411,7 +418,7 @@ namespace workflow {
     }
 
     /**
-     * @brief Resolve accepted images, including those quoted by a reply, for the vision role.
+     * @brief Resolve accepted images and market stickers, including quoted ones, for the vision role.
      *
      * HTTP and `base64://` sources are kept or converted directly; other sources are
      * fetched through the OneBot implementation. At most four images are returned, and

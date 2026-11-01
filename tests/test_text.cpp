@@ -42,7 +42,20 @@ DROGON_TEST(DescribeReceivedPrivateMessage) {
         .message = { segment("text", "text", "你好"), segment("image", "file", "a.png"), segment("face", "id", "14") },
         .sender = { .user_id = 20001, .nickname = "张三" },
     };
-    CHECK(common::describe_received(event) == "(10000) 接收 <- 私聊 张三(20001) 你好[image][face]");
+    CHECK(common::describe_received(event) == "(10000) 接收 <- 私聊 张三(20001) 你好[image][QQ表情:14]");
+}
+
+DROGON_TEST(DescribeStickerSegments) {
+    drogon_onebot::Message const message{
+        segment("mface", "summary", "猫猫头"),
+        segment("mface", "summary", "[动画表情]"),
+        segment("face", "id", "14"),
+        segment("image", "file", "a.png"),
+        segment("mface"),
+    };
+    CHECK(common::describe_content(message) == "猫猫头[动画表情][QQ表情:14][image][表情]");
+    CHECK(common::extract_stickers(message) == "猫猫头 [动画表情] [QQ表情:14] [表情]");
+    CHECK(common::extract_stickers({ segment("text", "text", "hi") }).empty());
 }
 
 DROGON_TEST(DescribeReceivedGroupMessage) {

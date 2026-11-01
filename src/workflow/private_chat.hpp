@@ -166,7 +166,7 @@ namespace workflow {
         ) -> drogon::Task<Json::Value>;
 
         /**
-         * @brief Resolve accepted images, including those quoted by a reply, for the vision role.
+         * @brief Resolve accepted images and market stickers, including quoted ones, for the vision role.
          *
          * HTTP and `base64://` sources are kept or converted directly; other sources are
          * fetched through the OneBot implementation. At most four images are returned, and

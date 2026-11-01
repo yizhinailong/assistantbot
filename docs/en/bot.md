@@ -119,7 +119,7 @@ The same keys can also be saved in the database, under the setting `bot`, and ca
 (10000) 接收 <- 群聊 (30001) 群名片(20001) @10000 在吗
 ```
 
-The number at the start is the QQ account the bot is logged in as. Then comes the other account, as its name and QQ number, preceded by the group number in a group message. A sent line stops after the recipient, without repeating the reply text, which can be long. The name is the sender's group card when they set one, otherwise their nickname; when both are empty, only the QQ number in parentheses is left. Text segments appear as they are, `at` segments as `@<QQ number>`, and other segments as `[<type>]`, such as `[image]` or `[face]`. drogon puts the time, the thread ID, and the level in front of each line. A message that fails to send is logged at ERROR level instead.
+The number at the start is the QQ account the bot is logged in as. Then comes the other account, as its name and QQ number, preceded by the group number in a group message. A sent line stops after the recipient, without repeating the reply text, which can be long. The name is the sender's group card when they set one, otherwise their nickname; when both are empty, only the QQ number in parentheses is left. Text segments appear as they are, `at` segments as `@<QQ number>`, market stickers by their own summary, QQ faces as `[QQ表情:<id>]`, and other segments as `[<type>]`, such as `[image]`. drogon puts the time, the thread ID, and the level in front of each line. A message that fails to send is logged at ERROR level instead.
 
 **Commands.** A message that is exactly a command is answered by the bot itself, without the model:
 
@@ -128,7 +128,7 @@ The number at the start is the QQ account the bot is logged in as. Then comes th
 | `/help` | Replies with a short help text |
 | `/reset` | Clears the sender's history and queued messages, then confirms |
 
-**Images and other media.** The vision role starts enabled. Up to four images in an accepted message, including images in the message a user quotes, are described before queuing the prompt. HTTP URLs, `base64://` payloads, and files fetched through NapCat are supported. Without a usable vision description or text, the existing text-only notice applies. Other media are represented only by placeholders in stored chat records.
+**Images, stickers, and other media.** The vision role starts enabled. Up to four images in an accepted message, including images in the message a user quotes and market-sticker images, are described before queuing the prompt. HTTP URLs, `base64://` payloads, and files fetched through NapCat are supported. A sticker-only message also adds the sticker summary or QQ face to the prompt, so the bot answers it instead of sending the text-only notice. Without a usable vision description, text, or sticker, that notice still applies. Other media are represented only by placeholders in stored chat records.
 
 **Conversation history.** Each friend and group conversation has its own history of turns, kept in memory. The model sees the system prompt, the last `history_turns` turns, and the new message. A history is cleared by `/reset`, after `idle_reset_minutes` of silence, and when the app restarts.
 

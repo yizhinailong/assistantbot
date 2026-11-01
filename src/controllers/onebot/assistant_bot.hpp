@@ -47,7 +47,7 @@ namespace controllers {
     constexpr char const* RESET_REPLY{ "对话历史已清空。" };
 
     /**
-     * @brief Answer to a message without text, such as a lone image.
+     * @brief Answer to a message without text, a sticker, or a usable image description.
      */
     constexpr char const* TEXT_ONLY_REPLY{ "目前只支持文字消息。" };
 
