@@ -23,8 +23,13 @@ namespace workflow {
      * @param database Persistent database.
      * @param model Primary model name.
      */
-    ModelRoles::ModelRoles(drogon_openai::OpenAI primary, drogon::orm::DbClientPtr database, std::string model)
-        : m_primary{ std::move(primary) }, m_database{ std::move(database) }, m_defaultModel{ std::move(model) } {}
+    ModelRoles::ModelRoles(
+        drogon_openai::OpenAI primary,
+        drogon::orm::DbClientPtr database,
+        std::string model
+    ) : m_primary{ std::move(primary) },
+        m_database{ std::move(database) },
+        m_defaultModel{ std::move(model) } {}
 
     /**
      * @brief Build an immutable client override with a per-role trace observer.
@@ -98,8 +103,15 @@ namespace workflow {
             }
         }
         auto const model{ params.model.value_or(m_defaultModel) };
-        auto result{ co_await client(config, role, session).chat.completions.Create(std::move(params)) };
-        co_await record(session, result ? result->model : model, result.has_value(), result && result->usage ? result->usage->raw : Json::Value{});
+        auto result{
+            co_await client(config, role, session).chat.completions.Create(std::move(params))
+        };
+        co_await record(
+            session,
+            result ? result->model : model,
+            result.has_value(),
+            result && result->usage ? result->usage->raw : Json::Value{}
+        );
         co_return result;
     }
 
@@ -119,8 +131,14 @@ namespace workflow {
         if (!config["enabled"].asBool()) {
             co_return std::vector<double>{};
         }
-        auto const model{ config["model"].asString().empty() ? m_defaultModel : config["model"].asString() };
-        auto const result{ co_await client(config, "embedding", session).embeddings.Create({ .input = std::move(text), .model = model, .encoding_format = "float" }) };
+        auto const model{
+            config["model"].asString().empty() ? m_defaultModel : config["model"].asString()
+        };
+        auto const result{
+            co_await client(config, "embedding", session)
+                .embeddings
+                .Create({ .input = std::move(text), .model = model, .encoding_format = "float" })
+        };
         co_await record(session, model, result.has_value(), result ? result->usage : Json::Value{});
         std::vector<double> vector{};
         if (!result || !result->data.isArray() || result->data.empty()) {
@@ -159,8 +177,33 @@ namespace workflow {
         }
         auto api{ client(config, "image_generation", session) };
         auto const model{ config["model"].asString().empty() ? m_defaultModel : config["model"].asString() };
-        auto result{ reference.empty() ? co_await api.images.Generate({ .prompt = std::move(prompt), .model = model, .n = 1, .response_format = "b64_json", .max_retries = 0 }) : co_await api.images.Edit({ .image = drogon_openai::UploadFile{ .content = character_image_bytes(reference), .filename = "character", .content_type = reference.substr(5, reference.find(';') - 5) }, .prompt = "Preserve the appearance of the character in the reference image. " + prompt, .model = model, .n = 1, .response_format = "b64_json", .max_retries = 0 }) };
-        co_await record(session, model, result.has_value(), result && result->usage ? *result->usage : Json::Value{});
+        auto result{
+            reference.empty() ?
+                co_await api.images.Generate(
+                    { .prompt = std::move(prompt),
+                      .model = model,
+                      .n = 1,
+                      .response_format = "b64_json",
+                      .max_retries = 0 }
+                ) :
+                co_await api.images.Edit(
+                    { .image = drogon_openai::UploadFile{
+                          .content = character_image_bytes(reference),
+                          .filename = "character",
+                          .content_type = reference.substr(5, reference.find(';') - 5) },
+                      .prompt = "Preserve the appearance of the character in the reference image. " + prompt,
+                      .model = model,
+                      .n = 1,
+                      .response_format = "b64_json",
+                      .max_retries = 0 }
+                )
+        };
+        co_await record(
+            session,
+            model,
+            result.has_value(),
+            result && result->usage ? *result->usage : Json::Value{}
+        );
         if (!result || !result->data || !result->data->isArray() || result->data->empty()) {
             throw std::runtime_error{ "image generation failed" };
         }
@@ -168,7 +211,9 @@ namespace workflow {
         if (image["b64_json"].isString() && image["b64_json"].asString().size() <= 12 * 1024 * 1024) {
             co_return "base64://" + image["b64_json"].asString();
         }
-        if (image["url"].isString() && (image["url"].asString().starts_with("https://") || image["url"].asString().starts_with("http://"))) {
+        if (image["url"].isString() &&
+            (image["url"].asString().starts_with("https://") ||
+             image["url"].asString().starts_with("http://"))) {
             co_return image["url"].asString();
         }
         throw std::runtime_error{ "image generation returned no supported image" };
@@ -181,7 +226,13 @@ namespace workflow {
      */
     auto ModelRoles::EmbeddingSpace(Json::Value const& snapshot) const -> std::string {
         auto const& config{ snapshot["models"]["embedding"] };
-        return (config["base_url"].asString().empty() ? m_primary.Config().base_url : config["base_url"].asString()) + "|" + (config["model"].asString().empty() ? m_defaultModel : config["model"].asString());
+        return (config["base_url"].asString().empty() ?
+                    m_primary.Config().base_url :
+                    config["base_url"].asString()) +
+            "|" +
+            (config["model"].asString().empty() ?
+                 m_defaultModel :
+                 config["model"].asString());
     }
 
     /**
@@ -198,15 +249,27 @@ namespace workflow {
         bool succeeded,
         Json::Value usage
     ) const -> drogon::Task<> {
-        storage::UsageRecord record{ .timestamp = common::unix_seconds(), .user_id = session, .model = std::move(model), .succeeded = succeeded };
-        auto read{ [&](char const* key) -> std::optional<std::int64_t> {
-            return usage.isObject() && usage[key].isInt64() && usage[key].asInt64() >= 0 ? std::optional{ usage[key].asInt64() } : std::nullopt;
-        } };
+        storage::UsageRecord record{
+            .timestamp = common::unix_seconds(),
+            .user_id = session,
+            .model = std::move(model),
+            .succeeded = succeeded
+        };
+        auto read{
+            [&](char const* key) -> std::optional<std::int64_t> {
+                return usage.isObject() && usage[key].isInt64() && usage[key].asInt64() >= 0 ?
+                    std::optional{ usage[key].asInt64() } :
+                    std::nullopt;
+            }
+        };
         record.prompt_tokens = read("prompt_tokens");
         record.completion_tokens = read("completion_tokens");
         record.total_tokens = read("total_tokens");
         record.cached_tokens = read("prompt_cache_hit_tokens");
-        if (usage.isObject() && usage["prompt_tokens_details"].isObject() && usage["prompt_tokens_details"]["cached_tokens"].isInt64() && usage["prompt_tokens_details"]["cached_tokens"].asInt64() >= 0) {
+        if (usage.isObject() &&
+            usage["prompt_tokens_details"].isObject() &&
+            usage["prompt_tokens_details"]["cached_tokens"].isInt64() &&
+            usage["prompt_tokens_details"]["cached_tokens"].asInt64() >= 0) {
             record.cached_tokens = usage["prompt_tokens_details"]["cached_tokens"].asInt64();
         }
         try {
