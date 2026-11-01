@@ -8,10 +8,10 @@
 #include "servers/http_helpers.hpp"
 #include "storage/database.hpp"
 #include "storage/feature_records.hpp"
-#include "tools/catalog.hpp"
-#include "tools/lua.hpp"
-#include "tools/mcp.hpp"
 #include "workflow/feature_settings.hpp"
+#include "workflow/tools/catalog.hpp"
+#include "workflow/tools/lua.hpp"
+#include "workflow/tools/mcp.hpp"
 
 namespace controllers {
     /**

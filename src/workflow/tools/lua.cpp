@@ -2,7 +2,7 @@
  * @file lua.cpp
  * @brief Bound Lua memory, instructions, CPU, JSON conversion, and yielding host operations.
  */
-#include "tools/lua.hpp"
+#include "workflow/tools/lua.hpp"
 
 #include <chrono>
 #include <cmath>
@@ -18,7 +18,7 @@
 #include <lualib.h>
 
 #include "common/json.hpp"
-#include "tools/catalog.hpp"
+#include "workflow/tools/catalog.hpp"
 
 namespace {
     char JSON_NULL{}; ///< Opaque Lua representation of JSON null.

@@ -2,7 +2,7 @@
  * @file catalog.cpp
  * @brief Keep built-in tool names and schemas deterministic across model requests and editors.
  */
-#include "tools/catalog.hpp"
+#include "workflow/tools/catalog.hpp"
 
 #include "common/json.hpp"
 

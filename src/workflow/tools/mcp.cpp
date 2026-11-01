@@ -2,7 +2,7 @@
  * @file mcp.cpp
  * @brief Support legacy MCP handshakes and 2026 stateless metadata over JSON or SSE responses.
  */
-#include "tools/mcp.hpp"
+#include "workflow/tools/mcp.hpp"
 
 #include <cctype>
 #include <regex>
@@ -16,7 +16,7 @@
 #include "common/json.hpp"
 #include "servers/auth.hpp"
 #include "servers/http_traces.hpp"
-#include "tools/http.hpp"
+#include "workflow/tools/http.hpp"
 
 namespace {
     /**

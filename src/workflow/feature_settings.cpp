@@ -11,8 +11,8 @@
 #include <stdexcept>
 
 #include "storage/settings.hpp"
-#include "tools/catalog.hpp"
 #include "workflow/access_control.hpp"
+#include "workflow/tools/catalog.hpp"
 
 namespace workflow {
 

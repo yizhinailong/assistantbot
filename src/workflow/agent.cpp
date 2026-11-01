@@ -14,11 +14,11 @@
 #include "servers/http_helpers.hpp"
 #include "storage/feature_records.hpp"
 #include "storage/memories.hpp"
-#include "tools/catalog.hpp"
-#include "tools/http.hpp"
-#include "tools/lua.hpp"
-#include "tools/mcp.hpp"
 #include "workflow/access_control.hpp"
+#include "workflow/tools/catalog.hpp"
+#include "workflow/tools/http.hpp"
+#include "workflow/tools/lua.hpp"
+#include "workflow/tools/mcp.hpp"
 
 namespace {
     /**

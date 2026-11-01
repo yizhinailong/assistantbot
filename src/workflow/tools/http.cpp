@@ -2,7 +2,7 @@
  * @file http.cpp
  * @brief Keep configured integration traffic asynchronous and observable without header leaks.
  */
-#include "tools/http.hpp"
+#include "workflow/tools/http.hpp"
 
 #include <algorithm>
 #include <cctype>

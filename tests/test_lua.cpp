@@ -5,7 +5,7 @@
 #include <drogon/drogon_test.h>
 
 #include "common/json.hpp"
-#include "tools/lua.hpp"
+#include "workflow/tools/lua.hpp"
 
 DROGON_TEST(LuaJsonAndYieldingHosts) {
     Json::Value args{};

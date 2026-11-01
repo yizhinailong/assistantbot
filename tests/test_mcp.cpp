@@ -6,7 +6,7 @@
 #include "common/json.hpp"
 #include "inbox.hpp"
 #include "servers/http_helpers.hpp"
-#include "tools/mcp.hpp"
+#include "workflow/tools/mcp.hpp"
 
 namespace {
     test_support::Inbox<Json::Value> observed{};
