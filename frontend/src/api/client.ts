@@ -15,6 +15,11 @@ export class ApiError extends Error {
   }
 }
 
+/** Describe a failure for display: the message of an Error, or the text of any other value. */
+export function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   /** Sent as JSON when set. */

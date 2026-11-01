@@ -275,10 +275,15 @@ export interface HttpTrace {
   response_truncated: boolean
 }
 
-export function getHttpTraces(source = ''): Promise<{ capacity: number; traces: HttpTrace[] }> {
+export interface HttpTraceReport {
+  capacity: number
+  traces: HttpTrace[]
+}
+
+export function getHttpTraces(source = ''): Promise<HttpTraceReport> {
   return request(`/api/admin/http-traces?source=${encodeURIComponent(source)}`)
 }
 
-export function clearHttpTraces(): Promise<{ capacity: number; traces: HttpTrace[] }> {
+export function clearHttpTraces(): Promise<HttpTraceReport> {
   return request('/api/admin/http-traces', { method: 'DELETE' })
 }

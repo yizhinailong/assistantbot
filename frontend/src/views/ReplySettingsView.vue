@@ -6,6 +6,7 @@ import {
   type ReplySettings,
   type ReplyValues,
 } from '@/api/admin'
+import { describeError } from '@/api/client'
 
 const settings = ref<ReplySettings>()
 const form = ref<ReplyValues>()
@@ -26,7 +27,7 @@ async function load(): Promise<void> {
   try {
     apply(await getReplySettings())
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause)
+    error.value = describeError(cause)
   } finally {
     busy.value = false
   }
@@ -49,7 +50,7 @@ async function save(restore = false): Promise<void> {
       ? '已恢复 config.json 中的默认设置。'
       : '设置已保存，从下一次回复起生效。'
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause)
+    error.value = describeError(cause)
   } finally {
     busy.value = false
   }

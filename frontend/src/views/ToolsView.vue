@@ -11,6 +11,7 @@ import {
   type ToolDefinition,
   type LuaTool,
 } from '@/api/tooling'
+import { describeError } from '@/api/client'
 const defaultSchema = {
   type: 'object',
   properties: { text: { type: 'string' } },
@@ -32,7 +33,7 @@ const busy = ref(false),
   args = ref('{"text":"你好"}'),
   result = ref('')
 function report(cause: unknown): void {
-  error.value = cause instanceof Error ? cause.message : String(cause)
+  error.value = describeError(cause)
 }
 async function load(): Promise<void> {
   busy.value = true

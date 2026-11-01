@@ -7,6 +7,7 @@ import {
   type ModelConfig,
   type ExecutionConfig,
 } from '@/api/features'
+import { describeError } from '@/api/client'
 const models = ref<FeatureSection<ModelConfig>>()
 const execution = ref<FeatureSection<ExecutionConfig>>()
 const busy = ref(false),
@@ -32,7 +33,7 @@ async function load(): Promise<void> {
       getFeature<ExecutionConfig>('execution'),
     ])
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause)
+    error.value = describeError(cause)
   } finally {
     busy.value = false
   }
@@ -62,7 +63,7 @@ async function save(section: 'models' | 'execution', reset = false): Promise<voi
     }
     notice.value = '已保存，下一次回复起生效。'
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause)
+    error.value = describeError(cause)
   } finally {
     busy.value = false
   }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { cancelTask, createTask, getTasks, type ScheduledTask } from '@/api/tooling'
+import { describeError } from '@/api/client'
 const tasks = ref<ScheduledTask[]>([])
 const kind = ref('private'),
   qq = ref(''),
@@ -26,7 +27,7 @@ async function load(): Promise<void> {
   try {
     tasks.value = (await getTasks(session())).tasks
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause)
+    error.value = describeError(cause)
   } finally {
     busy.value = false
   }
@@ -43,7 +44,7 @@ async function create(): Promise<void> {
     notice.value = '任务已保存。'
     tasks.value = (await getTasks(session())).tasks
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause)
+    error.value = describeError(cause)
   } finally {
     busy.value = false
   }
@@ -55,7 +56,7 @@ async function cancel(id: string): Promise<void> {
     await cancelTask(id)
     tasks.value = (await getTasks(session())).tasks
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause)
+    error.value = describeError(cause)
   } finally {
     busy.value = false
   }

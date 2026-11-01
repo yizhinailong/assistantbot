@@ -15,6 +15,7 @@ import {
   type Aliases,
   type LongMemory,
 } from '@/api/features'
+import { describeError } from '@/api/client'
 const settings = ref<FeatureSection<MemoryConfig>>()
 const type = ref('private'),
   qq = ref(''),
@@ -45,7 +46,7 @@ async function action(operation: () => Promise<void>): Promise<void> {
     await operation()
     notice.value = '操作完成。'
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause)
+    error.value = describeError(cause)
   } finally {
     busy.value = false
   }

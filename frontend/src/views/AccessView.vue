@@ -10,7 +10,8 @@ import {
   type AccessMode,
   type FriendInfo,
 } from '@/api/admin'
-import { ApiError } from '@/api/client'
+import { ApiError, describeError } from '@/api/client'
+import { compareIds } from '@/utils/ids'
 
 const mode = ref<AccessMode | null>(null)
 const draftMode = ref<AccessMode>('all_friends')
@@ -56,16 +57,16 @@ const rows = computed(() => {
         text.toLocaleLowerCase('zh-CN').includes(query),
       )
     })
-    .sort((a, b) => a.qq.length - b.qq.length || a.qq.localeCompare(b.qq))
+    .sort((a, b) => compareIds(a.qq, b.qq))
 })
 
-function describeError(error: unknown): string {
+function describeAccessError(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 409) return '有另一项访问设置正在保存，请稍后重试。'
     if (error.status === 502) return '暂时无法读取好友，请确认 NapCat 在线后刷新。'
     if (error.status === 500) return '访问设置操作失败，请重试并检查 bot 日志。'
   }
-  return error instanceof Error ? error.message : String(error)
+  return describeError(error)
 }
 
 async function refresh(): Promise<void> {
@@ -90,13 +91,13 @@ async function refresh(): Promise<void> {
     blacklist.value = blocked.qqs
   } else {
     mode.value = null
-    errorMessage.value = `读取访问设置失败：${describeError(policyResult.reason)}`
+    errorMessage.value = `读取访问设置失败：${describeAccessError(policyResult.reason)}`
   }
   if (friendsResult.status === 'fulfilled') {
     friends.value = friendsResult.value.friends
   } else {
     friends.value = []
-    friendsError.value = `${describeError(friendsResult.reason)} 仍可按 QQ 号管理名单。`
+    friendsError.value = `${describeAccessError(friendsResult.reason)} 仍可按 QQ 号管理名单。`
   }
   loading.value = false
 }
@@ -112,7 +113,7 @@ async function saveMode(): Promise<void> {
     draftMode.value = saved.mode
     notice.value = '回复范围已保存，将用于接下来的新消息。'
   } catch (error) {
-    errorMessage.value = describeError(error)
+    errorMessage.value = describeAccessError(error)
   } finally {
     saving.value = false
   }
@@ -129,7 +130,7 @@ async function changeEntry(list: AccessList, qq: string, present: boolean): Prom
     else blacklist.value = saved.qqs
     notice.value = `${qq} 已${present ? '加入' : '移出'}${list === 'allowlist' ? '允许名单' : '黑名单'}。`
   } catch (error) {
-    errorMessage.value = describeError(error)
+    errorMessage.value = describeAccessError(error)
   } finally {
     saving.value = false
   }

@@ -10,6 +10,8 @@ import {
   type SessionSummary,
 } from '@/api/admin'
 import { useAdminStream } from '@/composables/useAdminStream'
+import { mergeById } from '@/utils/ids'
+import { describeError } from '@/api/client'
 
 const sessions = ref<SessionSummary[]>([])
 const selected = ref('')
@@ -74,11 +76,7 @@ function mergeMessages(incoming: ChatMessage[], follow = true): void {
     !messages.value.length ||
     !element ||
     element.scrollHeight - element.scrollTop - element.clientHeight < 40
-  const merged = new Map(messages.value.map((message) => [message.id, message]))
-  for (const message of incoming) merged.set(message.id, message)
-  messages.value = [...merged.values()].sort(
-    (a, b) => a.id.length - b.id.length || a.id.localeCompare(b.id),
-  )
+  messages.value = mergeById(messages.value, incoming)
   if (follow && atBottom)
     void nextTick(() => {
       if (viewport.value) viewport.value.scrollTop = viewport.value.scrollHeight
@@ -93,8 +91,7 @@ async function refreshList(): Promise<void> {
     sessions.value = response.sessions
     if (!selected.value && sessions.value[0]) selected.value = sessions.value[0].user_id
   } catch (cause) {
-    if (!stopped && current === listRevision)
-      error.value = cause instanceof Error ? cause.message : String(cause)
+    if (!stopped && current === listRevision) error.value = describeError(cause)
   }
 }
 
@@ -106,8 +103,7 @@ async function refreshDetail(): Promise<void> {
     const result = await getSession(qq)
     if (!stopped && current === revision) detail.value = result
   } catch (cause) {
-    if (!stopped && current === revision)
-      error.value = cause instanceof Error ? cause.message : String(cause)
+    if (!stopped && current === revision) error.value = describeError(cause)
   }
 }
 
@@ -146,8 +142,7 @@ async function loadSelection(): Promise<void> {
     hasOlder.value = page.has_more
     fetchedCursor = page.next_after ?? '0'
   } catch (cause) {
-    if (!stopped && current === revision)
-      error.value = cause instanceof Error ? cause.message : String(cause)
+    if (!stopped && current === revision) error.value = describeError(cause)
   } finally {
     if (current === revision) loading.value = false
   }
@@ -176,8 +171,7 @@ async function catchUp(): Promise<void> {
       fetchedCursor = after
     }
   } catch (cause) {
-    if (!stopped && current === revision)
-      error.value = cause instanceof Error ? cause.message : String(cause)
+    if (!stopped && current === revision) error.value = describeError(cause)
   } finally {
     if (current === revision) catchingUp = false
   }
@@ -199,8 +193,7 @@ async function older(): Promise<void> {
     if (viewport.value && current === revision)
       viewport.value.scrollTop = viewport.value.scrollHeight - height + top
   } catch (cause) {
-    if (!stopped && current === revision)
-      error.value = cause instanceof Error ? cause.message : String(cause)
+    if (!stopped && current === revision) error.value = describeError(cause)
   } finally {
     if (current === revision) loadingOlder.value = false
   }
@@ -219,8 +212,7 @@ async function reset(): Promise<void> {
     notice.value = '上下文和待处理消息已清空。正在生成的回复仍会发出，但不会写回上下文。'
     await refreshList()
   } catch (cause) {
-    if (!stopped && current === revision)
-      error.value = cause instanceof Error ? cause.message : String(cause)
+    if (!stopped && current === revision) error.value = describeError(cause)
   } finally {
     resetting.value = false
   }

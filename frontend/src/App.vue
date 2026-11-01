@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { logout } from '@/api/admin'
-import { ApiError } from '@/api/client'
+import { ApiError, describeError } from '@/api/client'
 import { clearAuthentication } from '@/auth'
 
 const route = useRoute()
@@ -41,7 +41,7 @@ async function signOut(): Promise<void> {
       clearAuthentication()
       await router.replace({ name: 'login' })
     } else {
-      logoutError.value = error instanceof Error ? error.message : String(error)
+      logoutError.value = describeError(error)
     }
   } finally {
     signingOut.value = false

@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { login } from '@/api/admin'
 import { safeInternalRoute, setAuthenticated } from '@/auth'
+import { describeError } from '@/api/client'
 
 const route = useRoute()
 const router = useRouter()
@@ -23,7 +24,7 @@ async function submit(): Promise<void> {
     token.value = ''
     await router.replace(safeInternalRoute(route.query.redirect))
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : String(error)
+    errorMessage.value = describeError(error)
   } finally {
     submitting.value = false
   }

@@ -12,6 +12,7 @@ import {
   type FeatureRecord,
   type CharacterImage,
 } from '@/api/features'
+import { describeError } from '@/api/client'
 const stickers = ref<Sticker[]>([])
 const character = ref<FeatureRecord<CharacterImage | null>>()
 const path = ref('')
@@ -40,7 +41,7 @@ async function action(operation: () => Promise<unknown>, refresh = false): Promi
     notice.value = '已保存。'
     if (refresh) await load()
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause)
+    error.value = describeError(cause)
   } finally {
     busy.value = false
   }

@@ -2,6 +2,7 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { clearHttpTraces, getHttpTraces, type HttpTrace } from '@/api/admin'
 import { useAdminStream } from '@/composables/useAdminStream'
+import { describeError } from '@/api/client'
 
 const source = ref('')
 const traces = ref<HttpTrace[]>([])
@@ -13,6 +14,7 @@ let revision = 0
 let timer: ReturnType<typeof setTimeout> | undefined
 let stopped = false
 const selected = computed(() => traces.value.find((trace) => trace.id === selectedId.value))
+const newestFirst = computed(() => traces.value.slice().reverse())
 const download = computed(
   () => `/api/admin/http-traces/download?source=${encodeURIComponent(source.value)}`,
 )
@@ -28,8 +30,7 @@ async function refresh(): Promise<void> {
       selectedId.value = traces.value.at(-1)?.id ?? ''
     error.value = ''
   } catch (cause) {
-    if (!stopped && current === revision)
-      error.value = cause instanceof Error ? cause.message : String(cause)
+    if (!stopped && current === revision) error.value = describeError(cause)
   } finally {
     if (current === revision) loading.value = false
   }
@@ -49,7 +50,7 @@ async function clear(): Promise<void> {
     await clearHttpTraces()
     await refresh()
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause)
+    error.value = describeError(cause)
     loading.value = false
   }
 }
@@ -122,7 +123,7 @@ onUnmounted(() => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="trace in [...traces].reverse()" :key="trace.id">
+          <tr v-for="trace in newestFirst" :key="trace.id">
             <td>{{ new Date(trace.timestamp * 1000).toLocaleTimeString() }}</td>
             <td>{{ trace.source }} {{ trace.role }}</td>
             <td>{{ trace.method }}</td>

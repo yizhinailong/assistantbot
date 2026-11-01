@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import {
-  getBotStatus,
   getProcessMetrics,
   getRuntimeStatus,
   setBotPaused,
@@ -9,6 +8,7 @@ import {
   type RuntimeStatus,
 } from '@/api/admin'
 import MemoryChart from '@/components/MemoryChart.vue'
+import { describeError } from '@/api/client'
 
 const status = ref<RuntimeStatus | null>(null)
 const metrics = ref<ProcessMetrics | null>(null)
@@ -59,11 +59,7 @@ async function refresh(initial = false): Promise<void> {
     (result): result is PromiseRejectedResult => result.status === 'rejected',
   )
   if (failures.length > 0) {
-    errorMessage.value = failures
-      .map((failure) =>
-        failure.reason instanceof Error ? failure.reason.message : String(failure.reason),
-      )
-      .join('；')
+    errorMessage.value = failures.map((failure) => describeError(failure.reason)).join('；')
   }
   if (failures.length === 0) lastUpdated.value = new Date()
   loading.value = false
@@ -77,10 +73,8 @@ async function togglePaused(): Promise<void> {
   try {
     const result = await setBotPaused(!status.value.paused)
     status.value = { ...status.value, paused: result.paused }
-    const confirmed = await getBotStatus()
-    status.value = { ...status.value, paused: confirmed.paused }
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : String(error)
+    errorMessage.value = describeError(error)
   } finally {
     changingPause.value = false
   }

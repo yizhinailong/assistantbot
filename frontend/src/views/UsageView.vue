@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { getUsage, type UsageReport } from '@/api/admin'
 import { useAdminStream } from '@/composables/useAdminStream'
+import { describeError } from '@/api/client'
 
 const DAY = 86400
 const today = Math.floor(Date.now() / 1000 / DAY) * DAY
@@ -45,6 +46,10 @@ const users = computed(() =>
   ),
 )
 const number = (value: number): string => value.toLocaleString()
+const chartWidth = computed(() => Math.max(480, daily.value.length * 22))
+const barSpacing = computed(() => chartWidth.value / Math.max(1, daily.value.length))
+const barWidth = computed(() => barSpacing.value - 4)
+const labelStride = computed(() => Math.max(1, Math.ceil(daily.value.length / 8)))
 
 function scheduleRefresh(): void {
   clearTimeout(refreshTimer)
@@ -61,8 +66,7 @@ async function refresh(): Promise<void> {
       error.value = ''
     }
   } catch (cause) {
-    if (!stopped && current === revision)
-      error.value = cause instanceof Error ? cause.message : String(cause)
+    if (!stopped && current === revision) error.value = describeError(cause)
   } finally {
     if (current === revision) busy.value = false
   }
@@ -152,17 +156,17 @@ onUnmounted(() => {
         <div class="chart-scroll">
           <svg
             class="bar-chart"
-            :viewBox="`0 0 ${Math.max(480, daily.length * 22)} 240`"
-            :style="{ minWidth: `${Math.max(480, daily.length * 22)}px` }"
+            :viewBox="`0 0 ${chartWidth} 240`"
+            :style="{ minWidth: `${chartWidth}px` }"
             role="img"
             aria-label="每天总令牌柱状图，下方可展开数据表"
           >
-            <line x1="0" y1="205" :x2="Math.max(480, daily.length * 22)" y2="205" />
+            <line x1="0" y1="205" :x2="chartWidth" y2="205" />
             <g v-for="(day, index) in daily" :key="day.timestamp">
               <rect
-                :x="index * (Math.max(480, daily.length * 22) / daily.length) + 2"
+                :x="index * barSpacing + 2"
                 :y="205 - (day.tokens / maxTokens) * 185"
-                :width="Math.max(480, daily.length * 22) / daily.length - 4"
+                :width="barWidth"
                 :height="Math.max(day.tokens ? 1 : 0, (day.tokens / maxTokens) * 185)"
                 tabindex="0"
               >
@@ -171,11 +175,7 @@ onUnmounted(() => {
                   次请求
                 </title>
               </rect>
-              <text
-                v-if="index % Math.max(1, Math.ceil(daily.length / 8)) === 0"
-                :x="index * (Math.max(480, daily.length * 22) / daily.length) + 2"
-                y="226"
-              >
+              <text v-if="index % labelStride === 0" :x="index * barSpacing + 2" y="226">
                 {{ day.label.slice(5) }}
               </text>
             </g>

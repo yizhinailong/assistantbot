@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { getFeature, saveFeature, type FeatureSection } from '@/api/features'
 import { probeMcp, type McpConfig } from '@/api/tooling'
+import { describeError } from '@/api/client'
 const config = ref<FeatureSection<McpConfig>>()
 const busy = ref(false),
   error = ref(''),
@@ -13,7 +14,7 @@ async function load(): Promise<void> {
   try {
     config.value = await getFeature<McpConfig>('mcp')
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause)
+    error.value = describeError(cause)
   } finally {
     busy.value = false
   }
@@ -27,7 +28,7 @@ async function save(): Promise<void> {
     config.value = await saveFeature('mcp', config.value.values, config.value.revision)
     notice.value = '已保存，后续回复使用新配置。'
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause)
+    error.value = describeError(cause)
   } finally {
     busy.value = false
   }
@@ -50,7 +51,7 @@ async function test(name: string): Promise<void> {
   try {
     result.value = JSON.stringify(await probeMcp(name), null, 2)
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause)
+    error.value = describeError(cause)
   } finally {
     busy.value = false
   }

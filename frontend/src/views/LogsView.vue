@@ -9,6 +9,8 @@ import {
   type LogLevel,
 } from '@/api/admin'
 import { useAdminStream, type LiveEvent } from '@/composables/useAdminStream'
+import { mergeById } from '@/utils/ids'
+import { describeError } from '@/api/client'
 
 const levels: LogLevel[] = ['TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL']
 const draft = ref<LogFilter>({ level: '', keyword: '', qq: '' })
@@ -42,11 +44,7 @@ function sameFilter(filter: LogFilter): boolean {
 
 function append(batch: LogBatch): void {
   if (paused.value || !sameFilter(batch.filters)) return
-  const merged = new Map(entries.value.map((entry) => [entry.id, entry]))
-  for (const entry of batch.entries) merged.set(entry.id, entry)
-  entries.value = [...merged.values()]
-    .sort((a, b) => a.id.length - b.id.length || a.id.localeCompare(b.id))
-    .slice(-5000)
+  entries.value = mergeById(entries.value, batch.entries).slice(-5000)
   if (BigInt(batch.cursor) > BigInt(cursor)) cursor = batch.cursor
   if (batch.truncated) notice.value = '部分日志已超出内存缓冲范围，已显示仍可读取的记录。'
   if (autoScroll.value)
@@ -93,8 +91,7 @@ async function applyFilters(): Promise<void> {
     level.value = batch.log_level
     append(batch)
   } catch (cause) {
-    if (!stopped && current === revision)
-      error.value = cause instanceof Error ? cause.message : String(cause)
+    if (!stopped && current === revision) error.value = describeError(cause)
   } finally {
     if (current === revision) {
       loading.value = false
@@ -110,7 +107,7 @@ async function changeLevel(): Promise<void> {
     level.value = (await setLogLevel(level.value)).level
     notice.value = `运行日志等级已改为 ${level.value}。`
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause)
+    error.value = describeError(cause)
   } finally {
     saving.value = false
   }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { getGroups, saveGroup, getFeature, saveFeature, type Group } from '@/api/features'
+import { describeError } from '@/api/client'
 const groups = ref<Group[]>([])
 const revision = ref('')
 const admins = ref('')
@@ -18,7 +19,7 @@ async function load(): Promise<void> {
     admins.value = administrators.values.join('\n')
     adminsRevision.value = administrators.revision
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause)
+    error.value = describeError(cause)
   } finally {
     busy.value = false
   }
@@ -39,7 +40,7 @@ async function save(group?: Group): Promise<void> {
     adminsRevision.value = result.revision
     notice.value = '已保存，下一条消息起生效。'
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause)
+    error.value = describeError(cause)
   } finally {
     busy.value = false
   }
