@@ -76,8 +76,8 @@ namespace controllers {
          *
          * The handler logs every message event at INFO, group messages included, and ignores
          * all but private friend messages allowed by the access policy. It answers `HELP_COMMAND`,
-         * `RESET_COMMAND`, and a message without text itself, and passes any other text to
-         * `workflow::PrivateChat::Chat`.
+         * `RESET_COMMAND`, and a message without any usable content itself, and passes anything
+         * else to `workflow::PrivateChat::Chat`.
          * @param config Application `bot` settings.
          * @param onebot Initialized OneBot plugin for message registration.
          * @param openai Initialized OpenAI plugin for model clients.

@@ -47,7 +47,7 @@ namespace workflow {
 
         /**
          * @brief Describe a section and its optimistic concurrency revision.
-         * @param section groups, admins, models, execution, memory, tools, or mcp.
+         * @param section groups, admins, models, execution, memory, tools, web, or mcp.
          * @return Values, defaults, and decimal revision.
          * @throws std::invalid_argument If the section is unknown.
          */

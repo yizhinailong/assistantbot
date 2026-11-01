@@ -143,8 +143,10 @@ namespace common {
     /**
      * @brief Describe a message's segments as readable content.
      *
-     * `text` segments appear as they are, `at` segments as `@<qq>`, market stickers as
-     * their summary, QQ faces as `[QQ表情:<id>]`, and other segments as `[<type>]`.
+     * `text` segments appear as they are, `at` segments as `@<qq>`, market stickers
+     * (`mface`) as their own summary such as `[动画表情]`, QQ faces (`face`) as
+     * `[QQ表情:<id>]`, and other segments, such as `image`, as `[<type>]`. QQ faces
+     * without an ID appear as `[QQ表情]`.
      * @param message Message in array format.
      * @return Joined description; empty when the message has no segments.
      */
@@ -165,6 +167,10 @@ namespace common {
 
     /**
      * @brief Describe only the sticker segments of a message.
+     *
+     * Market stickers and QQ faces contribute their `describe_content()` text; every
+     * other segment contributes nothing. This is what a message with only a sticker
+     * adds to the model prompt.
      * @param message Message in array format.
      * @return Sticker descriptions separated by spaces; empty when there are none.
      */
@@ -189,7 +195,9 @@ namespace common {
      * The line is `(<self_id>) 接收 <- 私聊 <name>(<user_id>) <content>` for a private message
      * and `(<self_id>) 接收 <- 群聊 (<group_id>) <name>(<user_id>) <content>` for a group
      * message. The name is the sender's group card when set, otherwise their nickname, and
-     * may be empty. The content comes from `describe_content()`.
+     * may be empty. In the content, `text` segments appear as they are, `at` segments as
+     * `@<qq>`, stickers as described by `describe_content()`, and other segments as
+     * `[<type>]`, e.g. `[image]`.
      * @param event Message event from the OneBot implementation.
      * @return The line.
      */
