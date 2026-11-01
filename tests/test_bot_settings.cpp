@@ -22,23 +22,6 @@
 namespace {
 
     /**
-     * @brief Query that keeps SQLite busy for a moment, so that statements sent after it wait.
-     */
-    constexpr char const* SLOW_QUERY{
-        R"(
-            WITH RECURSIVE n(x) AS (
-                SELECT 1
-                UNION ALL
-                SELECT x + 1
-                FROM n
-                WHERE x < 1000000
-            )
-            SELECT COUNT(*)
-            FROM n
-        )"
-    };
-
-    /**
      * @brief Plugin config that sets two keys and leaves the rest to the defaults.
      * @return `{"history_turns": 4, "max_reply_chars": 300}`.
      */
@@ -185,7 +168,7 @@ DROGON_TEST(UpdateRejectsSecondSaveInFlight) {
     // The database has one connection, so the first update's write waits behind this query.
     std::promise<void> slow_done{};
     db->execSqlAsync(
-        SLOW_QUERY,
+        test_support::slow_query(1000000),
         [&slow_done](drogon::orm::Result const&) { slow_done.set_value(); },
         [&slow_done](drogon::orm::DrogonDbException const&) { slow_done.set_value(); }
     );

@@ -9,6 +9,7 @@
 
 #include <json/json.h>
 
+#include "common/json.hpp"
 #include "common/time.hpp"
 #include "storage/query.hpp"
 
@@ -95,8 +96,7 @@ namespace storage {
         if (revision && *revision < 0) {
             throw std::invalid_argument{ "revision must be nonnegative" };
         }
-        Json::StreamWriterBuilder writer{};
-        writer["indentation"] = "";
+        auto const encoded{ common::json_text(value) };
         auto const rows{
             co_await query(
                 db,
@@ -128,7 +128,7 @@ namespace storage {
                 )",
                 kind,
                 key,
-                Json::writeString(writer, value),
+                encoded,
                 common::unix_seconds(),
                 revision,
                 revision,

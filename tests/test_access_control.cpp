@@ -99,17 +99,7 @@ DROGON_TEST(AccessRejectsOverlappingChangesWithoutLosingUpdates) {
     auto const before{ access->Current() };
     std::promise<void> slow_done{};
     db->execSqlAsync(
-        R"(
-            WITH RECURSIVE n(x) AS (
-                SELECT 1
-                UNION ALL
-                SELECT x + 1
-                FROM n
-                WHERE x < 1000000
-            )
-            SELECT COUNT(*)
-            FROM n
-        )",
+        test_support::slow_query(1000000),
         [&slow_done](drogon::orm::Result const&) { slow_done.set_value(); },
         [&slow_done](drogon::orm::DrogonDbException const&) { slow_done.set_value(); }
     );

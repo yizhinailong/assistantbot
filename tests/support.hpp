@@ -113,6 +113,30 @@ namespace test_support {
     }
 
     /**
+     * @brief Build a recursive query that keeps SQLite busy while it counts to a bound.
+     *
+     * The database has one connection, so statements sent after this query wait behind it.
+     * @param rows Last counted value; a larger bound holds the connection longer.
+     * @return SQL text for `execSqlAsync()`.
+     */
+    inline auto slow_query(int rows) -> std::string {
+        return std::format(
+            R"(
+                WITH RECURSIVE n(x) AS (
+                    SELECT 1
+                    UNION ALL
+                    SELECT x + 1
+                    FROM n
+                    WHERE x < {}
+                )
+                SELECT COUNT(*)
+                FROM n
+            )",
+            rows
+        );
+    }
+
+    /**
      * @brief Tell whether the arguments make `drogon::test::run()` print and exit.
      * @param argc Argument count.
      * @param argv Arguments.

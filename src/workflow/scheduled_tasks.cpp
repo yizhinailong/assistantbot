@@ -29,6 +29,17 @@ namespace {
         task["daily"] = row["daily"].as<int>() != 0;
         return task;
     }
+
+    /**
+     * @brief Report the earliest pending deadline as `next`, or SQL NULL when none is pending.
+     */
+    constexpr char const* NEXT_DUE_SQL{
+        R"(
+            SELECT MIN(due_at) AS next
+            FROM scheduled_tasks
+            WHERE status = 'pending'
+        )"
+    };
 } // namespace
 
 namespace workflow {
@@ -46,13 +57,7 @@ namespace workflow {
                 error = 'interrupted by restart; delivery was not replayed'
             WHERE status = 'running'
         )");
-        auto const rows{
-            m_database->execSqlSync(R"(
-                SELECT MIN(due_at) AS next
-                FROM scheduled_tasks
-                WHERE status = 'pending'
-            )")
-        };
+        auto const rows{ m_database->execSqlSync(NEXT_DUE_SQL) };
         if (!rows[0]["next"].isNull()) {
             m_nextDue = rows[0]["next"].as<std::int64_t>();
         }
@@ -308,16 +313,7 @@ namespace workflow {
                     id
                 );
             }
-            auto const next{
-                co_await storage::query(
-                    m_database,
-                    R"(
-                        SELECT MIN(due_at) AS next
-                        FROM scheduled_tasks
-                        WHERE status = 'pending'
-                    )"
-                )
-            };
+            auto const next{ co_await storage::query(m_database, NEXT_DUE_SQL) };
             std::lock_guard lock{ m_mutex };
             m_nextDue = revision != m_revision ? 0 : (next[0]["next"].isNull() ? INT64_MAX : next[0]["next"].as<std::int64_t>());
         } catch (std::exception const& error) {

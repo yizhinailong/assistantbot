@@ -10,6 +10,7 @@
 
 #include <json/json.h>
 
+#include "common/json.hpp"
 #include "common/time.hpp"
 #include "storage/query.hpp"
 
@@ -106,9 +107,7 @@ namespace storage {
                 throw std::invalid_argument{ "memory vectors must contain finite numbers" };
             }
         }
-        Json::StreamWriterBuilder writer{};
-        writer["indentation"] = "";
-        auto const encoded{ Json::writeString(writer, embedding) };
+        auto const encoded{ common::json_text(embedding) };
         auto const now{ common::unix_seconds() };
         auto const rows{
             id ?

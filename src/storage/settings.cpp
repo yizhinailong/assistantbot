@@ -10,6 +10,7 @@
 
 #include <json/json.h>
 
+#include "common/json.hpp"
 #include "storage/query.hpp"
 
 namespace storage {
@@ -65,9 +66,7 @@ namespace storage {
         std::string name,
         Json::Value value
     ) -> drogon::Task<> {
-        Json::StreamWriterBuilder builder{};
-        builder["indentation"] = "";
-        auto const text{ Json::writeString(builder, value) };
+        auto const text{ common::json_text(value) };
         co_await query(
             db,
             R"(
