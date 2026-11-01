@@ -6,8 +6,8 @@
 
 #include <drogon/drogon.h>
 
-#include "admin/auth.hpp"
-#include "admin/live_events.hpp"
+#include "servers/auth.hpp"
+#include "servers/live_events.hpp"
 
 namespace controllers {
 

@@ -9,10 +9,10 @@
 
 #include <drogon/drogon.h>
 
-#include "admin/auth.hpp"
-#include "admin/http_traces.hpp"
-#include "admin/live_events.hpp"
 #include "common/time.hpp"
+#include "servers/auth.hpp"
+#include "servers/http_traces.hpp"
+#include "servers/live_events.hpp"
 #include "storage/usage.hpp"
 #include "workflow/character_image.hpp"
 

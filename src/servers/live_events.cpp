@@ -2,7 +2,7 @@
  * @file live_events.cpp
  * @brief Implement authenticated event subscriptions and bounded process logs.
  */
-#include "admin/live_events.hpp"
+#include "servers/live_events.hpp"
 
 #include <algorithm>
 #include <array>
@@ -18,9 +18,9 @@
 #include <drogon/drogon.h>
 #include <json/json.h>
 
-#include "admin/auth.hpp"
-#include "admin/http_helpers.hpp"
 #include "common/time.hpp"
+#include "servers/auth.hpp"
+#include "servers/http_helpers.hpp"
 #include "workflow/access_control.hpp"
 #include "workflow/private_chat.hpp"
 

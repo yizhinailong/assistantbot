@@ -9,9 +9,9 @@
 #include <regex>
 #include <set>
 
-#include "admin/http_helpers.hpp"
 #include "common/json.hpp"
 #include "common/text.hpp"
+#include "servers/http_helpers.hpp"
 #include "storage/feature_records.hpp"
 #include "storage/memories.hpp"
 #include "tools/catalog.hpp"

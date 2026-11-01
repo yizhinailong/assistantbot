@@ -12,8 +12,8 @@
 #include <drogon_onebot/onebot_client.hpp>
 #include <drogon_openai/openai_client.hpp>
 
-#include "admin/http_traces.hpp"
 #include "common/text.hpp"
+#include "servers/http_traces.hpp"
 #include "storage/database.hpp"
 #include "workflow/access_control.hpp"
 #include "workflow/agent.hpp"

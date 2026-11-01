@@ -4,7 +4,7 @@
  */
 #include "controllers/admin/admin.hpp"
 
-#include "admin/auth.hpp"
+#include "servers/auth.hpp"
 
 namespace controllers {
 

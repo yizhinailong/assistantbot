@@ -16,8 +16,8 @@
 | `drogon_openai::OpenAIClient` | [drogon-openai](https://github.com/yizhinailong/drogon-openai) | 调用兼容 OpenAI 格式的模型的 chat completions 接口 |
 | `storage::Database` | 本仓库的 `src/storage/` | 打开 bot 的 SQLite 数据库，并把表结构升级到最新 |
 | `controllers::AssistantBot` | 本仓库的 `src/controllers/`、`src/workflow/` 和 `src/common/` | 决定回复哪些消息，保存对话，并把另外三个插件连起来 |
-| `admin::Auth` | 本仓库的 `src/admin/` | 认证后台 HTTP 请求和 WebSocket 升级 |
-| `admin::Runtime` | 本仓库的 `src/admin/` | 查询 bot、NapCat 状态、当天用量和进程样本 |
+| `admin::Auth` | 本仓库的 `src/servers/` | 认证后台 HTTP 请求和 WebSocket 升级 |
+| `admin::Runtime` | 本仓库的 `src/servers/` | 查询 bot、NapCat 状态、当天用量和进程样本 |
 
 一条消息的处理过程：
 

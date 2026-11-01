@@ -2,10 +2,10 @@
  * @file test_mcp.cpp
  * @brief Verify legacy handshakes, modern metadata and mirrored headers, SSE, and invalid discovery.
  */
-#include "admin/http_helpers.hpp"
 #include "admin_support.hpp"
 #include "common/json.hpp"
 #include "inbox.hpp"
+#include "servers/http_helpers.hpp"
 #include "tools/mcp.hpp"
 
 namespace {

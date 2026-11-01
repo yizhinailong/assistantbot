@@ -2,7 +2,7 @@
  * @file runtime_state.cpp
  * @brief Implement runtime state, daily usage, and process sampling.
  */
-#include "admin/runtime_state.hpp"
+#include "servers/runtime_state.hpp"
 
 #include <chrono>
 #include <stdexcept>
@@ -13,8 +13,8 @@
 
 #include <drogon_openai/openai_client.hpp>
 
-#include "admin/http_traces.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
+#include "servers/http_traces.hpp"
 #include "storage/database.hpp"
 #include "storage/usage.hpp"
 #include "workflow/bot_settings.hpp"

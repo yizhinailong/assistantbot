@@ -2,7 +2,7 @@
  * @file process_metrics.cpp
  * @brief Implement process resource sampling for the runtime administration API.
  */
-#include "admin/process_metrics.hpp"
+#include "servers/process_metrics.hpp"
 
 #include <chrono>
 #include <fstream>

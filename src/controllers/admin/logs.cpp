@@ -4,8 +4,8 @@
  */
 #include "controllers/admin/logs.hpp"
 
-#include "admin/http_helpers.hpp"
-#include "admin/live_events.hpp"
+#include "servers/http_helpers.hpp"
+#include "servers/live_events.hpp"
 #include "workflow/access_control.hpp"
 
 namespace controllers {

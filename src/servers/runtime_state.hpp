@@ -18,7 +18,7 @@
 
 #include <drogon_onebot/onebot_client.hpp>
 
-#include "admin/process_metrics.hpp"
+#include "servers/process_metrics.hpp"
 
 namespace controllers {
     class AssistantBot;

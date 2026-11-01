@@ -11,7 +11,7 @@
 #include <drogon/drogon.h>
 #include <drogon/drogon_test.h>
 
-#include "admin/auth.hpp"
+#include "servers/auth.hpp"
 #include "support.hpp"
 
 namespace {

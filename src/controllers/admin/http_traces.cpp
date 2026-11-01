@@ -4,8 +4,8 @@
  */
 #include "controllers/admin/http_traces.hpp"
 
-#include "admin/http_helpers.hpp"
-#include "admin/http_traces.hpp"
+#include "servers/http_helpers.hpp"
+#include "servers/http_traces.hpp"
 
 namespace controllers {
 

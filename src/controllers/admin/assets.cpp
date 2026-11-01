@@ -4,8 +4,8 @@
  */
 #include "controllers/admin/assets.hpp"
 
-#include "admin/http_helpers.hpp"
-#include "admin/http_traces.hpp"
+#include "servers/http_helpers.hpp"
+#include "servers/http_traces.hpp"
 #include "storage/database.hpp"
 #include "storage/feature_records.hpp"
 #include "workflow/character_image.hpp"

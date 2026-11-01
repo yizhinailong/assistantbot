@@ -6,9 +6,9 @@
 
 #include <drogon_openai/openai_client.hpp>
 
-#include "admin/http_helpers.hpp"
-#include "admin/live_events.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
+#include "servers/http_helpers.hpp"
+#include "servers/live_events.hpp"
 #include "workflow/bot_settings.hpp"
 
 namespace controllers {

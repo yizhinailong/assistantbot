@@ -13,9 +13,9 @@
 #include <drogon/drogon.h>
 #include <drogon/utils/Utilities.h>
 
-#include "admin/auth.hpp"
-#include "admin/http_traces.hpp"
 #include "common/json.hpp"
+#include "servers/auth.hpp"
+#include "servers/http_traces.hpp"
 #include "tools/http.hpp"
 
 namespace {

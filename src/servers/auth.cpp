@@ -2,7 +2,7 @@
  * @file auth.cpp
  * @brief Implement the administrative authentication service.
  */
-#include "admin/auth.hpp"
+#include "servers/auth.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -18,8 +18,8 @@
 #include <drogon_onebot/onebot_client.hpp>
 #include <drogon_openai/openai_client.hpp>
 
-#include "admin/http_traces.hpp"
-#include "admin/live_events.hpp"
+#include "servers/http_traces.hpp"
+#include "servers/live_events.hpp"
 
 namespace admin {
 

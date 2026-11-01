@@ -4,8 +4,8 @@
  */
 #include "controllers/admin/usage_stats.hpp"
 
-#include "admin/http_helpers.hpp"
 #include "common/time.hpp"
+#include "servers/http_helpers.hpp"
 #include "storage/database.hpp"
 #include "storage/usage.hpp"
 

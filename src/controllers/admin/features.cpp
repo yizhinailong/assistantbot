@@ -4,10 +4,10 @@
  */
 #include "controllers/admin/features.hpp"
 
-#include "admin/http_helpers.hpp"
-#include "admin/http_traces.hpp"
-#include "admin/live_events.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
+#include "servers/http_helpers.hpp"
+#include "servers/http_traces.hpp"
+#include "servers/live_events.hpp"
 #include "workflow/access_control.hpp"
 #include "workflow/feature_settings.hpp"
 

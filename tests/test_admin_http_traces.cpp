@@ -4,8 +4,8 @@
  */
 #include <drogon/drogon_test.h>
 
-#include "admin/http_traces.hpp"
 #include "admin_support.hpp"
+#include "servers/http_traces.hpp"
 
 DROGON_TEST(HttpTracesRequireAuthenticationAndValidateFilters) {
     for (auto const* path : { "/api/admin/http-traces", "/api/admin/http-traces/download" }) {

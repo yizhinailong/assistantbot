@@ -2,7 +2,7 @@
  * @file
  * @brief Collect redacted request attempts without retaining authorization headers.
  */
-#include "admin/http_traces.hpp"
+#include "servers/http_traces.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -14,8 +14,8 @@
 
 #include <drogon/HttpAppFramework.h>
 
-#include "admin/live_events.hpp"
 #include "common/time.hpp"
+#include "servers/live_events.hpp"
 
 namespace admin {
 

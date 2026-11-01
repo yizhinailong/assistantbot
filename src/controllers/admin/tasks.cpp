@@ -4,8 +4,8 @@
  */
 #include "controllers/admin/tasks.hpp"
 
-#include "admin/http_helpers.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
+#include "servers/http_helpers.hpp"
 #include "workflow/scheduled_tasks.hpp"
 
 namespace controllers {

@@ -13,8 +13,8 @@
 
 #include <drogon_onebot/onebot_client.hpp>
 
-#include "admin/http_traces.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
+#include "servers/http_traces.hpp"
 #include "workflow/access_control.hpp"
 
 namespace controllers {

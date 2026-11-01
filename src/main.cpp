@@ -8,9 +8,9 @@
 
 #include <drogon/drogon.h>
 
-#include "admin/auth.hpp"
-#include "admin/runtime_state.hpp"
 #include "controllers/onebot/assistant_bot.hpp"
+#include "servers/auth.hpp"
+#include "servers/runtime_state.hpp"
 
 namespace {
 

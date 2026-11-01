@@ -8,9 +8,9 @@
 
 #include <drogon/drogon.h>
 
-#include "admin/live_events.hpp"
 #include "common/text.hpp"
 #include "common/time.hpp"
+#include "servers/live_events.hpp"
 #include "storage/messages.hpp"
 #include "storage/usage.hpp"
 #include "workflow/access_control.hpp"

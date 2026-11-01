@@ -2,9 +2,9 @@
  * @file test_model_roles.cpp
  * @brief Verify role isolation, credential inheritance, embeddings, images, and usage accounting.
  */
-#include "admin/http_traces.hpp"
 #include "admin_support.hpp"
 #include "inbox.hpp"
+#include "servers/http_traces.hpp"
 #include "storage/database.hpp"
 #include "storage/usage.hpp"
 #include "workflow/feature_settings.hpp"

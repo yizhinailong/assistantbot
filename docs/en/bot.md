@@ -16,8 +16,8 @@ The app combines six drogon plugins, all registered in `config.json`:
 | `drogon_openai::OpenAIClient` | [drogon-openai](https://github.com/yizhinailong/drogon-openai) | Calls the chat completions API of an OpenAI-compatible model |
 | `storage::Database` | `src/storage/` in this repository | Opens the bot's SQLite database and brings its schema up to date |
 | `controllers::AssistantBot` | `src/controllers/`, `src/workflow/`, and `src/common/` in this repository | Decides which messages to answer, keeps the conversations, and connects the other three |
-| `admin::Auth` | `src/admin/` | Authenticates administrative HTTP requests and WebSocket upgrades |
-| `admin::Runtime` | `src/admin/` | Queries bot and NapCat status, daily usage, and process samples |
+| `admin::Auth` | `src/servers/` | Authenticates administrative HTTP requests and WebSocket upgrades |
+| `admin::Runtime` | `src/servers/` | Queries bot and NapCat status, daily usage, and process samples |
 
 A message travels like this:
 

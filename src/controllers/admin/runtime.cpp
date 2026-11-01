@@ -9,7 +9,7 @@
 
 #include <drogon/drogon.h>
 
-#include "admin/runtime_state.hpp"
+#include "servers/runtime_state.hpp"
 
 namespace controllers {
 

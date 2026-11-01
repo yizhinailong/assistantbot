@@ -13,7 +13,7 @@
 
 #include <drogon/drogon.h>
 
-#include "admin/http_traces.hpp"
+#include "servers/http_traces.hpp"
 
 namespace tools {
     /**

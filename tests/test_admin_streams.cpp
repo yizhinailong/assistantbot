@@ -17,8 +17,8 @@
 #include <drogon/drogon_test.h>
 #include <json/json.h>
 
-#include "admin/live_events.hpp"
 #include "admin_support.hpp"
+#include "servers/live_events.hpp"
 
 namespace {
 
