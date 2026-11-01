@@ -421,11 +421,14 @@ namespace workflow {
      * @return Vision-ready HTTP or data URLs.
      */
     auto PrivateChat::ResolveImages(Peer peer, drogon_onebot::Message message) -> drogon::Task<std::vector<std::string>> {
-        if (!m_agent || !m_agent->VisionEnabled()) {
-            co_return std::vector<std::string>{};
-        }
         std::vector<ImageSource> sources{};
         collect_image_sources(message, sources);
+        if (!m_agent || !m_agent->VisionEnabled()) {
+            if (!sources.empty()) {
+                LOG_INFO << "Ignoring " << sources.size() << " image(s) in message " << peer.message_id << ": the vision role is disabled";
+            }
+            co_return std::vector<std::string>{};
+        }
         if (auto const quoted{ quoted_message_id(message) }; quoted && sources.size() < MAX_MESSAGE_IMAGES) {
             auto const fetched{ co_await m_onebot.GetMsg({ .message_id = *quoted, .timeout = 10.0 }) };
             if (!fetched) {
@@ -453,6 +456,9 @@ namespace workflow {
             }
             total += url->size();
             urls.push_back(std::move(*url));
+        }
+        if (urls.empty() && !sources.empty()) {
+            LOG_WARN << "No usable image in message " << peer.message_id << ": " << sources.size() << " source(s) could not be read";
         }
         co_return urls;
     }
