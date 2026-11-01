@@ -80,13 +80,12 @@ namespace workflow {
         drogon_openai::OpenAI openai,
         drogon::orm::DbClientPtr database,
         std::string model
-    )
-        : m_settings{ std::move(settings) },
-          m_onebot{ std::move(onebot) },
-          m_openai{ std::move(openai) },
-          m_sessions{ m_settings },
-          m_database{ std::move(database) },
-          m_model{ std::move(model) } {}
+    ) : m_settings{ std::move(settings) },
+        m_onebot{ std::move(onebot) },
+        m_openai{ std::move(openai) },
+        m_sessions{ m_settings },
+        m_database{ std::move(database) },
+        m_model{ std::move(model) } {}
 
     /**
      * @brief Answer a text message of a friend with the model.
@@ -165,40 +164,53 @@ namespace workflow {
         params.timeout = config->request_timeout;
 
         if (m_agent) {
-            auto result{ co_await m_agent->Run(peer, std::move(params), prompt, [this, peer, maximum = config->max_reply_chars](drogon_onebot::Message message, std::string display) -> drogon::Task<Json::Value> {
-                std::string text{};
-                bool text_only{ true };
-                drogon_onebot::Message quotes{};
-                for (auto const& segment : message) {
-                    if (segment.type == "text") {
-                        text += segment.data["text"].asString();
-                    } else if (segment.type == "reply") {
-                        quotes.push_back(segment);
-                    } else {
-                        text_only = false;
-                    }
-                }
-                if (text_only && !text.empty() && text == display) {
-                    Json::Value result{};
-                    for (auto& part : common::split_reply(text, maximum)) {
-                        auto segments{ std::move(quotes) };
-                        quotes.clear();
-                        segments.push_back(drogon_onebot::MessageSegment::Text(part));
-                        result = co_await SendMessage(peer, std::move(segments), part);
-                        if (!result["ok"].asBool()) {
-                            co_return result;
+            auto result{ co_await m_agent->Run(
+                peer,
+                std::move(params),
+                prompt,
+                [this, peer, maximum = config->max_reply_chars](
+                    drogon_onebot::Message message,
+                    std::string display
+                ) -> drogon::Task<Json::Value> {
+                    std::string text{};
+                    bool text_only{ true };
+                    drogon_onebot::Message quotes{};
+                    for (auto const& segment : message) {
+                        if (segment.type == "text") {
+                            text += segment.data["text"].asString();
+                        } else if (segment.type == "reply") {
+                            quotes.push_back(segment);
+                        } else {
+                            text_only = false;
                         }
                     }
-                    co_return result;
+                    if (text_only && !text.empty() && text == display) {
+                        Json::Value result{};
+                        for (auto& part : common::split_reply(text, maximum)) {
+                            auto segments{ std::move(quotes) };
+                            quotes.clear();
+                            segments.push_back(drogon_onebot::MessageSegment::Text(part));
+                            result = co_await SendMessage(peer, std::move(segments), part);
+                            if (!result["ok"].asBool()) {
+                                co_return result;
+                            }
+                        }
+                        co_return result;
+                    }
+                    co_return co_await SendMessage(peer, std::move(message), std::move(display));
                 }
-                co_return co_await SendMessage(peer, std::move(message), std::move(display));
-            }) };
+            ) };
             if (!result.completed) {
                 co_await Send(peer, FAILURE_REPLY);
                 co_return;
             }
             if (!result.text.empty()) {
-                m_sessions.Record(conversation_id(peer), history.generation, { .user = prompt, .assistant = result.text }, SessionStore::Clock::now());
+                m_sessions.Record(
+                    conversation_id(peer),
+                    history.generation,
+                    { .user = prompt, .assistant = result.text },
+                    SessionStore::Clock::now()
+                );
                 if (!result.delivered) {
                     for (auto& part : common::split_reply(result.text, config->max_reply_chars)) {
                         co_await Send(peer, std::move(part));
@@ -243,7 +255,12 @@ namespace workflow {
             co_return;
         }
         auto parts{ common::split_reply(reply, config->max_reply_chars) };
-        m_sessions.Record(conversation_id(peer), history.generation, { .user = std::move(prompt), .assistant = std::move(reply) }, SessionStore::Clock::now());
+        m_sessions.Record(
+            conversation_id(peer),
+            history.generation,
+            { .user = std::move(prompt), .assistant = std::move(reply) },
+            SessionStore::Clock::now()
+        );
         for (auto& part : parts) {
             co_await Send(peer, std::move(part));
         }
@@ -256,7 +273,11 @@ namespace workflow {
      * @return Task that ends when the OneBot implementation has answered.
      */
     auto PrivateChat::Send(Peer peer, std::string text) -> drogon::Task<> {
-        static_cast<void>(co_await SendMessage(peer, { drogon_onebot::MessageSegment::Text(text) }, text));
+        static_cast<void>(co_await SendMessage(
+            peer,
+            { drogon_onebot::MessageSegment::Text(text) },
+            text
+        ));
     }
 
     /**
@@ -273,12 +294,19 @@ namespace workflow {
      * @param question Accompanying user text.
      * @return Image description or empty.
      */
-    auto PrivateChat::DescribeImages(Peer peer, std::string question) -> drogon::Task<std::string> {
+    auto PrivateChat::DescribeImages(
+        Peer peer,
+        std::string question
+    ) -> drogon::Task<std::string> {
         if (!m_agent) {
             co_return std::string{};
         }
         auto urls{ peer.image_urls };
-        co_return co_await m_agent->DescribeImages(std::move(peer), std::move(urls), std::move(question));
+        co_return co_await m_agent->DescribeImages(
+            std::move(peer),
+            std::move(urls),
+            std::move(question)
+        );
     }
 
     /**
@@ -293,7 +321,11 @@ namespace workflow {
         drogon_onebot::Message message,
         std::string display
     ) -> drogon::Task<Json::Value> {
-        auto const sent{ peer.group_id == 0 ? co_await m_onebot.SendPrivateMsg({ .user_id = peer.user_id, .message = std::move(message) }) : co_await m_onebot.SendGroupMsg({ .group_id = peer.group_id, .message = std::move(message) }) };
+        auto const sent{
+            peer.group_id == 0 ?
+                co_await m_onebot.SendPrivateMsg({ .user_id = peer.user_id, .message = std::move(message) }) :
+                co_await m_onebot.SendGroupMsg({ .group_id = peer.group_id, .message = std::move(message) })
+        };
         Json::Value result{};
         result["ok"] = sent.has_value();
         if (!sent) {
@@ -323,7 +355,13 @@ namespace workflow {
         if (ignored_reason.empty()) {
             m_sessions.Touch(conversation_id(peer), peer.nickname, common::unix_seconds());
         }
-        co_await appendMessage(peer, "incoming", std::move(content), ignored_reason.empty() ? "received" : "ignored", ignored_reason);
+        co_await appendMessage(
+            peer,
+            "incoming",
+            std::move(content),
+            ignored_reason.empty() ? "received" : "ignored",
+            ignored_reason
+        );
     }
 
     /**
@@ -371,17 +409,22 @@ namespace workflow {
         std::string error
     ) -> drogon::Task<> {
         try {
-            auto saved{ co_await storage::append_message(m_database, {
-                                                                         .timestamp = common::unix_seconds(),
-                                                                         .user_id = conversation_id(peer),
-                                                                         .nickname = std::move(peer.nickname),
-                                                                         .direction = std::move(direction),
-                                                                         .content = std::move(content),
-                                                                         .status = std::move(status),
-                                                                         .error = std::move(error),
-                                                                         .sender_id = peer.user_id,
-                                                                         .group_id = peer.group_id,
-                                                                     }) };
+            auto saved{
+                co_await storage::append_message(
+                    m_database,
+                    {
+                        .timestamp = common::unix_seconds(),
+                        .user_id = conversation_id(peer),
+                        .nickname = std::move(peer.nickname),
+                        .direction = std::move(direction),
+                        .content = std::move(content),
+                        .status = std::move(status),
+                        .error = std::move(error),
+                        .sender_id = peer.user_id,
+                        .group_id = peer.group_id,
+                    }
+                )
+            };
             Json::Value event{ Json::objectValue };
             event["type"] = "message_created";
             event["user_id"] = std::to_string(conversation_id(peer));
